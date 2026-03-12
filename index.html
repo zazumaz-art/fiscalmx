@@ -1,0 +1,2420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FiscalMX 2026</title>
+
+<!-- ── PWA: iOS ── -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FiscalMX">
+
+<!-- ── PWA: Android / Chrome ── -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#08091a">
+<meta name="application-name" content="FiscalMX">
+
+<!-- ── Iconos inline SVG como PNG via canvas (máxima compatibilidad) ── -->
+<link rel="apple-touch-icon" id="ati" href="">
+<link rel="icon" id="fav" href="">
+
+<!-- ── SEO / Share ── -->
+<meta name="description" content="Calcula tu ISR, deducciones y declaración anual como asalariado en México. Gratis, sin registro.">
+<meta property="og:title" content="FiscalMX 2026 — Calculadora fiscal para asalariados">
+<meta property="og:description" content="Optimiza tu declaración anual: ISR, 5 baldes de deducciones, proyección de inversión y plan de retiro.">
+<meta property="og:type" content="website">
+
+<script>
+// ── Genera icono PNG en canvas y lo asigna a apple-touch-icon + favicon ──
+(function(){
+  function makeIcon(size){
+    var c=document.createElement('canvas');
+    c.width=c.height=size;
+    var ctx=c.getContext('2d');
+    // Fondo redondeado
+    var r=size*0.18;
+    ctx.beginPath();
+    ctx.moveTo(r,0);ctx.lineTo(size-r,0);ctx.quadraticCurveTo(size,0,size,r);
+    ctx.lineTo(size,size-r);ctx.quadraticCurveTo(size,size,size-r,size);
+    ctx.lineTo(r,size);ctx.quadraticCurveTo(0,size,0,size-r);
+    ctx.lineTo(0,r);ctx.quadraticCurveTo(0,0,r,0);
+    ctx.closePath();
+    ctx.fillStyle='#08091a';ctx.fill();
+    // Símbolo $
+    ctx.fillStyle='#3dffc0';
+    ctx.font='bold '+(size*.52)+'px Georgia,serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('$',size/2,size/2+size*.04);
+    // Línea decorativa inferior
+    ctx.fillStyle='rgba(61,255,192,.25)';
+    ctx.fillRect(size*.15,size*.82,size*.7,size*.03);
+    return c.toDataURL('image/png');
+  }
+  var icon192=makeIcon(192);
+  var icon512=makeIcon(512);
+  document.getElementById('ati').href=icon512;
+  document.getElementById('fav').href=icon192;
+
+  // ── Manifest dinámico ──
+  var manifest={
+    name:'FiscalMX 2026',
+    short_name:'FiscalMX',
+    description:'Calculadora fiscal para asalariados en México — ISR, deducciones, declaración anual',
+    start_url:location.href.split('?')[0],
+    scope:location.pathname,
+    display:'standalone',
+    orientation:'portrait-primary',
+    background_color:'#08091a',
+    theme_color:'#08091a',
+    categories:['finance','productivity'],
+    lang:'es',
+    icons:[
+      {src:icon192,sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:icon512,sizes:'512x512',type:'image/png',purpose:'any maskable'}
+    ],
+    shortcuts:[
+      {name:'Calcular ISR',short_name:'ISR',description:'Ir directo al formulario',url:location.href.split('?')[0]}
+    ]
+  };
+  var blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  var url=URL.createObjectURL(blob);
+  var link=document.createElement('link');
+  link.rel='manifest';link.href=url;
+  document.head.appendChild(link);
+
+  // ── Service Worker — registrar solo si el archivo fue guardado localmente o en servidor ──
+  if('serviceWorker' in navigator){
+    // SW inline via Blob (funciona cuando el HTML es servido, no en file://)
+    var swCode=`
+const CACHE='fiscalmx-v1';
+const ASSETS=[
+  self.location.href.replace('sw.js',''),
+  'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,300&family=DM+Mono:wght@300;400;500&display=swap'
+];
+
+self.addEventListener('install',e=>{
+  e.waitUntil(
+    caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(keys=>Promise.all(
+      keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))
+    )).then(()=>self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch',e=>{
+  e.respondWith(
+    caches.match(e.request).then(cached=>{
+      if(cached)return cached;
+      return fetch(e.request).then(res=>{
+        if(!res||res.status!==200||res.type==='opaque')return res;
+        var clone=res.clone();
+        caches.open(CACHE).then(c=>c.put(e.request,clone));
+        return res;
+      }).catch(()=>caches.match(e.request));
+    })
+  );
+});
+`;
+    try{
+      var swBlob=new Blob([swCode],{type:'application/javascript'});
+      var swUrl=URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl,{scope:'./'})
+        .then(function(reg){
+          console.log('[FiscalMX] SW registrado, scope:',reg.scope);
+        })
+        .catch(function(e){
+          // SW via blob solo funciona en algunos navegadores — silencioso
+          console.log('[FiscalMX] SW no disponible en este contexto:',e.message);
+        });
+    }catch(e){}
+  }
+})();
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,300&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08091a;--sur:#0d1025;--sur2:#111530;--bor:#1e2540;--bor2:#2a3358;
+  --ac:#3dffc0;--b2:#4d9fff;--b3:#ff7a45;--yel:#ffc94d;--red:#ff4560;
+  --tx:#dde3f5;--mu:#5a6485;--dim:#2d3660;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;font-size:14px;overflow-x:hidden;line-height:1.5;}
+
+/* noise overlay */
+body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:.4;}
+
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px 120px;padding-bottom:calc(100px + env(safe-area-inset-bottom));position:relative;}
+
+/* ── HEADER ── */
+header{padding:44px 0 28px;border-bottom:1px solid var(--bor);margin-bottom:32px;display:flex;justify-content:space-between;align-items:flex-end;}
+.logo{font-family:'Fraunces',serif;font-size:2.2rem;font-weight:900;color:var(--tx);line-height:1;}
+.logo em{color:var(--ac);font-style:normal;}
+.logo-sub{font-size:10px;color:var(--mu);margin-top:6px;letter-spacing:2px;text-transform:uppercase;}
+.badge{font-size:9px;border:1px solid var(--bor2);color:var(--mu);padding:6px 12px;border-radius:2px;letter-spacing:2px;text-transform:uppercase;}
+
+/* ── SECTION LABELS ── */
+.sec{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin:32px 0 14px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bor);}
+.sec-num{color:var(--ac);font-weight:500;}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+@media(max-width:700px){.g2,.g3,.g4{grid-template-columns:1fr;}}
+@media(max-width:900px){.g3{grid-template-columns:1fr 1fr;}}
+
+/* ── CARDS ── */
+.card{background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:20px;}
+.card.mb{margin-bottom:12px;}
+.card.accent{border-top:2px solid var(--ac);}
+.card.dim-top{border-top:2px solid var(--mu);}
+.card.warn{border:1px solid rgba(255,69,96,.3);background:rgba(255,69,96,.04);}
+.card.ok{border:1px solid rgba(61,255,192,.2);background:rgba(61,255,192,.03);}
+.card.neutral{border:1px solid rgba(255,201,77,.2);background:rgba(255,201,77,.03);}
+
+/* ── CARD HEADER ── */
+.ch{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--ac);display:inline-block;flex-shrink:0;}
+
+/* ── FORM ── */
+.fg{margin-bottom:14px;}
+.fg:last-child{margin-bottom:0;}
+.fg label{display:block;font-size:9px;color:var(--mu);margin-bottom:5px;letter-spacing:1px;text-transform:uppercase;}
+.fg input,.fg select{width:100%;background:var(--bg);border:1px solid var(--bor);color:var(--tx);font-family:'DM Mono',monospace;font-size:14px;padding:10px 12px;border-radius:4px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;}
+.fg input:focus,.fg select:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(61,255,192,.08);}
+.fh{font-size:10px;color:var(--mu);margin-top:5px;line-height:1.6;}
+
+/* ── PROFILE BUTTONS ── */
+.profile-btns{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.pbtn{background:var(--bg);border:1px solid var(--bor);color:var(--mu);font-family:'DM Mono',monospace;font-size:11px;padding:7px 16px;border-radius:3px;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.pbtn:hover{border-color:var(--bor2);color:var(--tx);}
+.pbtn.active{background:rgba(61,255,192,.08);border-color:var(--ac);color:var(--ac);}
+
+/* ── DIVIDER ── */
+.div{height:1px;background:var(--bor);margin:16px 0;}
+
+/* ── TOGGLES ── */
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+@media(max-width:500px){.dg{grid-template-columns:1fr;}}
+.tog{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;cursor:pointer;transition:all .15s;user-select:none;}
+.tog.on{border-color:rgba(61,255,192,.4);background:rgba(61,255,192,.05);}
+.tck{width:14px;height:14px;border:1px solid var(--bor2);border-radius:2px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#000;background:transparent;transition:all .15s;}
+.tog.on .tck{background:var(--ac);border-color:var(--ac);}
+.tl{font-size:11px;color:var(--tx);line-height:1.4;font-family:'DM Mono',monospace;}
+.ts{font-size:9px;color:var(--mu);margin-top:2px;}
+.di{display:none;}.di.on{display:block;}
+
+/* ── BUTTON ── */
+.btn{width:100%;background:var(--ac);color:#05110e;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:3px;text-transform:uppercase;border:none;padding:16px;border-radius:4px;cursor:pointer;margin:8px 0 0;transition:opacity .2s,transform .1s;}
+.btn:hover{opacity:.88;}.btn:active{transform:scale(.99);}
+
+/* ── STICKY CTA ── */
+#sticky-cta{position:fixed;bottom:0;left:0;right:0;z-index:1000;padding:12px 20px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:rgba(8,9,26,.92);border-top:1px solid var(--bor2);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:none;align-items:center;justify-content:space-between;gap:16px;transform:translateY(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);}
+#sticky-cta.visible{display:flex;transform:translateY(0);}
+.sticky-inner{max-width:1040px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.sticky-preview{font-size:10px;color:var(--mu);}
+.sticky-preview strong{color:var(--tx);font-size:12px;}
+.sticky-btn{background:var(--ac);color:#05110e;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.5px;text-transform:uppercase;border:none;padding:12px 24px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:opacity .15s,transform .1s;flex-shrink:0;}
+.sticky-btn:hover{opacity:.88;}.sticky-btn:active{transform:scale(.99);}
+
+/* ── TOGGLE DEDUCCIÓN — mayor área de toque ── */
+.tog{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;cursor:pointer;transition:border-color .15s,background .15s;user-select:none;}
+.tog:hover{border-color:var(--bor2);background:rgba(255,255,255,.02);}
+.tog.on{border-color:rgba(61,255,192,.4);background:rgba(61,255,192,.05);}
+.tck{width:16px;height:16px;border:1.5px solid var(--bor2);border-radius:3px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;background:transparent;transition:all .15s;}
+.tog:hover .tck{border-color:var(--ac);opacity:.7;}
+.tog.on .tck{background:var(--ac);border-color:var(--ac);}
+.tl{font-size:11px;color:var(--tx);line-height:1.4;font-family:'DM Mono',monospace;}
+.ts{font-size:9px;color:var(--mu);margin-top:2px;}
+.di{display:none;}.di.on{display:block;}
+
+/* ── BALDE CARDS — breathing room ── */
+.balde-card{background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:20px;margin-bottom:20px;position:relative;}
+.balde-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;border-radius:6px 0 0 6px;}
+.balde-card.b1::before{background:var(--red);}
+.balde-card.b2::before{background:var(--ac);}
+.balde-card.b3::before{background:var(--yel);}
+.balde-card.b4::before{background:var(--b2);}
+.balde-card.b5::before{background:#a78bfa;}
+.balde-num{font-family:'Fraunces',serif;font-size:1.6rem;font-weight:900;line-height:1;flex-shrink:0;}
+.balde-hdr{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;}
+.balde-hdr.clickable{cursor:pointer;margin-bottom:0;padding-bottom:0;transition:opacity .15s;}
+.balde-hdr.clickable:hover{opacity:.8;}
+.balde-meta{flex:1;}
+.balde-title{font-size:10px;font-weight:600;color:var(--tx);letter-spacing:.5px;}
+.balde-sub{font-size:9px;color:var(--mu);margin-top:3px;line-height:1.6;}
+.balde-ico{font-size:10px;color:var(--mu);transition:transform .25s;flex-shrink:0;padding-top:3px;}
+.balde-body{overflow:hidden;transition:max-height .3s cubic-bezier(.16,1,.3,1),opacity .25s;max-height:0;opacity:0;pointer-events:none;}
+.balde-body.open{max-height:1200px;opacity:1;pointer-events:auto;margin-top:14px;}
+.balde-hdr.clickable.open .balde-ico{transform:rotate(180deg);}
+
+/* ── OTROS INGRESOS TOGGLE — más visible ── */
+.otros-tog{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 14px;background:rgba(77,159,255,.04);border:1px solid rgba(77,159,255,.2);border-radius:4px;user-select:none;transition:all .2s;margin-top:16px;}
+.otros-tog:hover{background:rgba(77,159,255,.08);border-color:rgba(77,159,255,.4);}
+.otros-tog.open{background:rgba(77,159,255,.07);border-color:rgba(77,159,255,.4);}
+.otros-tog-ico{font-size:9px;color:var(--b2);transition:transform .2s;}
+.otros-tog.open .otros-tog-ico{transform:rotate(180deg);}
+
+/* ── RESULTS ── */
+#res{display:none;}
+
+.num{font-family:'Fraunces',serif;font-size:2rem;font-weight:700;line-height:1;margin:6px 0 4px;}
+.num.ac{color:var(--ac);}
+.num.mu{color:var(--mu);}
+.num.red{color:var(--red);}
+.num.yel{color:var(--yel);}
+.num.b2{color:var(--b2);}
+.numlab{font-size:9px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;}
+
+/* ── DECLARACIÓN PANEL ── */
+/* large card with left color stripe per section */
+.dec-panel{background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;margin-bottom:12px;}
+.dec-panel-header{padding:20px 24px;border-bottom:1px solid var(--bor);display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;transition:background .15s;}
+.dec-panel-header:hover{background:var(--sur2);}
+.dec-panel-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);}
+.dec-result-num{font-family:'Fraunces',serif;font-size:1.6rem;font-weight:900;letter-spacing:-.5px;}
+.dec-header-right{display:flex;align-items:center;gap:12px;}
+.dec-toggle-ico{font-size:10px;color:var(--mu);transition:transform .25s;}
+.dec-toggle-ico.open{transform:rotate(180deg);}
+.dec-body{padding:0;}
+/* Collapsible sections */
+.dec-section{border-bottom:1px solid var(--bor);}
+.dec-section:last-child{border-bottom:none;}
+.dec-section-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:var(--sur2);cursor:pointer;user-select:none;transition:background .15s;}
+.dec-section-hdr:hover{background:rgba(255,255,255,.03);}
+.dec-section-label{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);}
+.dec-sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dec-section-right{display:flex;align-items:center;gap:10px;}
+.dec-section-badge{font-size:10px;font-weight:500;}
+.dec-section-ico{font-size:9px;color:var(--bor2);transition:transform .2s;}
+.dec-section-ico.open{transform:rotate(180deg);}
+.dec-section-body{overflow:hidden;max-height:0;opacity:0;transition:max-height .3s ease,opacity .2s ease;}
+.dec-section-body.open{max-height:800px;opacity:1;}
+.dec-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 24px 9px 36px;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px;}
+.dec-row:last-child{border-bottom:none;}
+.dec-row.indent0{padding-left:24px;}
+.dec-row.indent2{padding-left:48px;}
+.dec-row.total-row{background:var(--sur2);padding:16px 24px;border-top:2px solid var(--bor2);}
+.dec-row.total-row .lbl{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700;color:var(--tx);}
+.dec-row.total-row .val{font-family:'Fraunces',serif;font-size:1.4rem;font-weight:700;}
+.dec-row .lbl{color:var(--mu);}
+.dec-row .val{font-weight:500;}
+.dec-row .val.pos{color:var(--ac);}
+.dec-row .val.neg{color:var(--red);}
+.dec-row .val.neu{color:var(--tx);}
+.dec-row .val.dim{color:var(--mu);}
+.dec-row .val.yel{color:var(--yel);}
+
+/* subtable inside dec-panel (RF/div desglose) */
+.subt{width:100%;font-size:10px;}
+.subt td{padding:4px 0;color:var(--mu);vertical-align:top;}
+.subt td:last-child{text-align:right;color:var(--tx);}
+.subt tr.sub-total td{color:var(--tx);font-weight:500;border-top:1px solid var(--bor);padding-top:7px;}
+.subt tr.sub-total td:last-child{color:var(--ac);}
+.subt tr.sub-neg td:last-child{color:var(--red);}
+
+/* ── SCORE ── */
+.sw{display:flex;align-items:center;gap:18px;}
+.sd{flex:1;display:flex;flex-direction:column;gap:6px;}
+.sr{display:flex;align-items:center;gap:6px;font-size:10px;}
+.sdot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+
+/* ── BARS ── */
+.bar-r{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.bar-l{font-size:9px;color:var(--mu);width:90px;flex-shrink:0;text-align:right;letter-spacing:.5px;}
+.bar-t{flex:1;height:5px;background:var(--bor);border-radius:2px;overflow:hidden;}
+.bar-f{height:100%;border-radius:2px;width:0;transition:width 1s cubic-bezier(.22,1,.36,1);}
+.bar-v{font-size:9px;width:72px;flex-shrink:0;text-align:right;}
+
+/* ── TABLE ISR ── */
+.xt{width:100%;border-collapse:collapse;font-size:10px;}
+.xt th{color:var(--mu);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:5px 8px;text-align:left;border-bottom:1px solid var(--bor);}
+.xt td{padding:6px 8px;border-bottom:1px solid rgba(30,37,64,.6);}
+.xt tr.on td{color:var(--ac);background:rgba(61,255,192,.04);}
+.xt tr.on td:first-child{border-left:2px solid var(--ac);}
+/* collapsible */
+.collap-hdr{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;}
+.collap-body{display:none;}
+.collap-body.open{display:block;}
+
+/* ── SIMULADOR ── */
+.simr{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+.simt{display:flex;justify-content:space-between;align-items:baseline;}
+.simn{font-size:9px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;}
+.simv{font-size:12px;color:var(--ac);font-weight:500;}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:var(--bor);outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--ac);cursor:pointer;box-shadow:0 0 0 3px rgba(61,255,192,.2);}
+.simbox{display:flex;gap:12px;flex-wrap:wrap;padding:12px 14px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;}
+.sbi{display:flex;flex-direction:column;gap:4px;}
+.sbl{font-size:8px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;}
+.sbv{font-family:'Fraunces',serif;font-size:1.2rem;font-weight:700;}
+.sbv.g{color:var(--ac);}
+
+/* ── CHART ── */
+.pcw{position:relative;width:100%;height:200px;margin:14px 0;}
+.pbtns{display:flex;gap:5px;}
+.pb{font-size:9px;letter-spacing:1.5px;padding:6px 12px;border:1px solid var(--bor);border-radius:3px;background:transparent;color:var(--mu);cursor:pointer;transition:all .2s;text-transform:uppercase;}
+.pb:hover{border-color:rgba(61,255,192,.4);color:var(--fg);}
+.pb.on{border-color:var(--ac);color:var(--ac);background:rgba(61,255,192,.07);box-shadow:0 0 12px rgba(61,255,192,.08);}
+.pleg{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding:0 2px;}
+.plgi{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--mu);letter-spacing:.5px;}
+.plgl{width:16px;height:2px;border-radius:1px;flex-shrink:0;}
+/* Instrument input cards */
+.pi-card{background:var(--sur2);border:1px solid var(--bor);border-radius:6px;padding:12px 14px;transition:border-color .2s;position:relative;overflow:hidden;}
+.pi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:6px 6px 0 0;}
+.pi-card.ppr::before{background:var(--b2);}
+.pi-card.etf::before{background:var(--b3);}
+.pi-card.rf::before{background:var(--ac);}
+.pi-card:focus-within{border-color:rgba(255,255,255,.15);}
+.pi-label{font-size:8px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.pi-prefix{font-size:11px;color:var(--mu);margin-right:2px;}
+.pi-input{background:transparent;border:none;color:var(--tx);font-family:'DM Mono',monospace;font-size:16px;padding:0;width:100%;outline:none;letter-spacing:-.5px;}
+.pi-input::placeholder{color:var(--bor2);}
+.pi-sub{font-size:8px;color:var(--mu);margin-top:6px;display:flex;align-items:center;gap:4px;}
+.pi-rate{background:transparent;border:none;border-bottom:1px solid var(--bor);color:var(--ac);font-family:'DM Mono',monospace;font-size:10px;padding:1px 0;width:26px;outline:none;text-align:center;}
+/* Summary cards */
+.ps{border-radius:6px;padding:12px 14px;position:relative;overflow:hidden;}
+.ps::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.02) 0%,transparent 60%);}
+.psl{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;opacity:.7;}
+.psv{font-family:'Fraunces',serif;font-size:1.15rem;font-weight:700;letter-spacing:-.5px;}
+/* Monthly input */
+.pm-wrap{position:relative;}
+.pm-prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--mu);font-family:'DM Mono',monospace;pointer-events:none;}
+.pm-input{background:var(--sur2);border:1px solid var(--bor);color:var(--tx);font-family:'DM Mono',monospace;font-size:15px;padding:10px 12px 10px 24px;border-radius:5px;outline:none;width:100%;box-sizing:border-box;transition:border-color .2s;}
+.pm-input:focus{border-color:rgba(61,255,192,.3);}
+.psums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;}
+@media(max-width:600px){.psums{grid-template-columns:1fr 1fr;}}
+.ps{background:var(--bg);border:1px solid var(--bor);border-radius:4px;padding:9px 11px;}
+.psl{font-size:8px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.psv{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;}
+
+/* ── INSTRUMENTOS ── */
+.ic{background:var(--bg);border:1px solid var(--bor);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:5px;transition:border-color .2s;}
+.ic:hover{border-color:var(--bor2);}
+.itg{display:inline-block;font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:2px;background:rgba(61,255,192,.08);color:var(--ac);border:1px solid rgba(61,255,192,.15);margin-bottom:2px;width:fit-content;}
+.itg.bl{background:rgba(77,159,255,.08);color:var(--b2);border-color:rgba(77,159,255,.15);}
+.itg.or{background:rgba(255,122,69,.08);color:var(--b3);border-color:rgba(255,122,69,.15);}
+.in{font-family:'Fraunces',serif;font-size:13px;font-weight:700;}
+.ir{font-size:18px;color:var(--ac);font-weight:500;}
+.id{font-size:9px;color:var(--mu);line-height:1.6;}
+.irow{display:flex;justify-content:space-between;font-size:9px;padding:3px 0;border-bottom:1px solid var(--bor);color:var(--mu);}
+.irow span:last-child{color:var(--tx);}
+.irow.hl span:last-child{color:var(--ac);}
+
+/* ── PLAN ── */
+.plan-item{display:flex;gap:12px;align-items:flex-start;padding:13px 14px;background:var(--bg);border:1px solid var(--bor);border-left:3px solid;border-radius:0 4px 4px 0;}
+.plan-n{font-family:'Fraunces',serif;font-size:20px;font-weight:900;flex-shrink:0;line-height:1;margin-top:1px;}
+.plan-t{font-size:11px;font-weight:500;margin-bottom:3px;color:var(--tx);}
+.plan-d{font-size:10px;color:var(--mu);line-height:1.7;}
+
+/* ── CALENDARIO ── */
+.cg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+@media(max-width:700px){.cg{grid-template-columns:1fr 1fr;}}
+.ci{background:var(--bg);border:1px solid var(--bor);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;}
+.ci::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.ci.urg::before{background:var(--red);}
+.ci.pronto::before{background:var(--yel);}
+.ci.nor::before{background:var(--b2);}
+.ci.lejos::before{background:var(--mu);}
+.cm{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--mu);}
+.ct2{font-size:10px;font-weight:500;line-height:1.4;color:var(--tx);}
+.cd{font-size:9px;color:var(--mu);line-height:1.5;}
+.cbg{font-size:8px;margin-top:2px;color:var(--mu);}
+
+/* ── NOTE ── */
+.note{font-size:9px;color:var(--mu);line-height:1.7;padding:9px 12px;background:rgba(255,122,69,.04);border-left:2px solid var(--b3);border-radius:0 4px 4px 0;margin-top:9px;}
+
+/* ── DISCLAIMER ── */
+.disc{margin-top:30px;padding:12px 16px;background:rgba(255,69,96,.03);border:1px solid rgba(255,69,96,.1);border-radius:4px;font-size:9px;color:var(--mu);line-height:1.8;letter-spacing:.3px;}
+.disc strong{color:var(--red);}
+
+/* ── STATUS TAG ── */
+.stag{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:2px;margin-bottom:8px;}
+.stag.ok{background:rgba(61,255,192,.08);color:var(--ac);border:1px solid rgba(61,255,192,.15);}
+.stag.warn{background:rgba(255,69,96,.08);color:var(--red);border:1px solid rgba(255,69,96,.15);}
+.stag.info{background:rgba(77,159,255,.08);color:var(--b2);border:1px solid rgba(77,159,255,.15);}
+.stag.yel{background:rgba(255,201,77,.08);color:var(--yel);border:1px solid rgba(255,201,77,.15);}
+
+/* ── ANIMATIONS ── */
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.anim{animation:fu .35s ease forwards;opacity:0;}
+.d1{animation-delay:.04s}.d2{animation-delay:.1s}.d3{animation-delay:.16s}.d4{animation-delay:.22s}.d5{animation-delay:.28s}
+
+/* ── INFOBOX ── */
+.ibox{padding:10px 12px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;font-size:10px;color:var(--mu);line-height:1.7;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <div class="logo">Fiscal<em>MX</em></div>
+    <div class="logo-sub">Calculadora ISR · Personas físicas asalariadas · 2026</div>
+  </div>
+  <div class="badge">SAT · Ejercicio 2026</div>
+</header>
+
+<!-- ══════════════════════════════════════════
+     01 · DATOS DE ENTRADA
+══════════════════════════════════════════ -->
+<div class="sec"><span class="sec-num">01</span> Ingresos del año</div>
+
+<!-- Card nómina — ancho completo -->
+<div class="card accent mb">
+  <div class="ch"><span class="dot"></span>Sueldo y percepciones</div>
+  <div class="g2">
+    <div class="fg">
+      <label>Salario bruto mensual (MXN)</label>
+      <input type="number" id="salM" placeholder="30,000" min="0">
+      <div class="fh">Antes de retenciones × 12 meses</div>
+    </div>
+    <div class="fg">
+      <label>Prestaciones y bonos — año completo (MXN)</label>
+      <input type="number" id="prest" placeholder="20,000" min="0">
+      <div class="fh">Aguinaldo + prima vacacional + PTU + bonos (parte gravable)</div>
+    </div>
+    <div class="fg">
+      <label>Ingresos exentos — año completo (MXN)</label>
+      <input type="number" id="exentos" placeholder="0" min="0">
+      <div class="fh">Fondo de ahorro + vales de despensa + fracción exenta del aguinaldo/prima.</div>
+    </div>
+    <div style="padding:12px 14px;background:rgba(255,201,77,.05);border:1px solid rgba(255,201,77,.25);border-radius:4px;">
+      <div style="font-size:9px;color:var(--yel);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">⚠ Campo crítico — afecta directamente el saldo a favor</div>
+      <div class="fg" style="margin-bottom:0">
+        <label style="color:var(--yel)">ISR retenido por empleador — año completo (MXN)</label>
+        <input type="number" id="isrRetenidoEmp" placeholder="0" min="0" style="border-color:rgba(255,201,77,.4);">
+        <div class="fh">Cópialo de <strong style="color:var(--tx)">"Impuesto retenido"</strong> en tu declaración previa SAT o CFDI anual acumulado. Si lo dejas en $0 se estima con la tarifa (puede diferir).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toggle otros ingresos -->
+  <div onclick="toggleOtrosIngresos()" id="otros-toggle" class="otros-tog">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:5px;height:5px;border-radius:50%;background:var(--b2);display:inline-block;flex-shrink:0;"></span>
+      <div>
+        <div style="font-size:10px;color:var(--tx);font-weight:500;">Tengo otros ingresos</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:1px;">Renta fija (CETES / SOFIPOs) o dividendos</div>
+      </div>
+    </div>
+    <span class="otros-tog-ico" id="otros-ico">▼</span>
+  </div>
+  <div id="otros-body" style="display:none;margin-top:12px;">
+    <div class="div" style="margin-top:0;"></div>
+    <div class="g2">
+      <div>
+        <div class="ch" style="margin-bottom:10px;"><span class="dot" style="background:var(--b2)"></span>Renta fija — CETES / SOFIPOs / fondos de deuda</div>
+        <div class="fg">
+          <label>Saldo Promedio Diario Anual</label>
+          <input type="number" id="rfCap" placeholder="200,000" min="0">
+          <div class="fh">Capital invertido. <strong style="color:var(--yel)">Necesario</strong> para el ajuste inflacionario.</div>
+        </div>
+        <div class="fg">
+          <label>Interés Nominal Bruto</label>
+          <input type="number" id="rfRend" placeholder="14,000" min="0">
+          <div class="fh">Rendimientos antes de impuestos</div>
+        </div>
+        <div class="fg">
+          <label>ISR retenido en intereses — año completo</label>
+          <input type="number" id="isrRetInt" placeholder="0" min="0">
+          <div class="fh">Suma de retenciones de todas las instituciones.</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>Tasa de inflación anual (%)</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="inpc" placeholder="4.20" step="0.01" min="0" value="4.20" style="flex:1">
+            <div onclick="event.stopPropagation();document.getElementById('inpc').value='4.20'" style="cursor:pointer;font-size:9px;color:var(--ac);background:rgba(61,255,192,.07);border:1px solid rgba(61,255,192,.2);padding:5px 9px;border-radius:3px;white-space:nowrap;">↺ 4.20%</div>
+          </div>
+          <div class="fh">Sugerido <strong style="color:var(--ac)">4.20%</strong> para 2026 — INPC dic/dic SAT.</div>
+        </div>
+      </div>
+      <div>
+        <div class="ch" style="margin-bottom:10px;"><span class="dot" style="background:var(--b3)"></span>Dividendos — distribución de utilidades</div>
+        <div class="fg">
+          <label>Monto acumulable por dividendos (MXN)</label>
+          <input type="number" id="divNeto" placeholder="0" min="0">
+          <div class="fh">El importe <strong style="color:var(--yel)">ya piramidado</strong> que reporta el SAT (campo "Monto acumulable del dividendo o utilidad").</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>ISR corporativo acreditable (MXN)</label>
+          <input type="number" id="isrCorp" placeholder="0" min="0">
+          <div class="fh">Campo "Monto total del ISR pagado por la sociedad acreditable" en tu declaración.</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /otros-body -->
+</div>
+
+<!-- Card perfil familiar — ancho completo pero compacta -->
+<div class="card mb">
+  <div class="ch"><span class="dot"></span>Perfil familiar — activa deducciones automáticamente</div>
+  <div class="g2">
+    <div class="fg" style="margin-bottom:0">
+      <label>¿Tienes cónyuge sin ingresos propios?</label>
+      <div class="profile-btns" id="pb-conyuge">
+        <button type="button" class="pbtn" onclick="setPerfil('conyuge','no',this)">No</button>
+        <button type="button" class="pbtn" onclick="setPerfil('conyuge','si',this)">Sí</button>
+      </div>
+      <div class="fh" id="hint-conyuge" style="display:none;color:var(--ac);">✓ Gastos médicos del cónyuge activados en Balde 1</div>
+    </div>
+    <div class="fg" style="margin-bottom:0">
+      <label>¿Cuántos hijos dependientes tienes?</label>
+      <div class="profile-btns" id="pb-hijos">
+        <button type="button" class="pbtn active0" onclick="setPerfil('hijos','0',this)">0</button>
+        <button type="button" class="pbtn" onclick="setPerfil('hijos','1',this)">1</button>
+        <button type="button" class="pbtn" onclick="setPerfil('hijos','2',this)">2</button>
+        <button type="button" class="pbtn" onclick="setPerfil('hijos','3',this)">3+</button>
+      </div>
+      <div class="fh" id="hint-hijos" style="display:none;color:var(--ac);"></div>
+    </div>
+  </div>
+  <input type="hidden" id="hijos" value="0">
+</div>
+
+<!-- ══════════════════════════════════════════
+     02 · DEDUCCIONES
+══════════════════════════════════════════ -->
+<div class="sec"><span class="sec-num">02</span> Deducciones personales</div>
+
+<!-- BALDE 1: Art.151 Fr.I,II,IV,VI,VII — El Saldo a Favor por Existir -->
+<div class="balde-card b1">
+  <div class="balde-hdr clickable" onclick="toggleBalde('b1-body',this)">
+    <div class="balde-num" style="color:var(--red)">1</div>
+    <div class="balde-meta">
+      <div class="balde-title">Art. 151 Fr. I, II, IV, VI, VII — El Saldo a Favor por Existir</div>
+      <div class="balde-sub">Sujeto al tope global: min(15% ingreso, 5 UMAs) · Los conceptos compiten entre sí dentro de este balde</div>
+    </div>
+    <span class="balde-ico">▼</span>
+  </div>
+  <div class="balde-body" id="b1-body">
+    <div class="dg" id="dg">
+      <label class="tog" onclick="togD(this,'med')"><div class="tck"></div><div><div class="tl">Gastos Médicos y Hospitalarios <span style="font-size:8px;color:var(--mu)">Fr.I</span></div><div class="ts">Médico, dentista, hospital · con CFDI</div></div></label>
+      <label class="tog" onclick="togD(this,'psic')"><div class="tck"></div><div><div class="tl">Psicología y Nutrición <span style="font-size:8px;color:var(--mu)">Fr.I</span></div><div class="ts">Honorarios a profesionales con cédula · con CFDI</div></div></label>
+      <label class="tog" onclick="togD(this,'lent')"><div class="tck"></div><div><div class="tl">Lentes graduados ópticos <span style="font-size:8px;color:var(--mu)">Fr.I</span></div><div class="ts">Tope específico $2,500 MXN por persona</div></div></label>
+      <label class="tog" onclick="togD(this,'fun')"><div class="tck"></div><div><div class="tl">Gastos funerales <span style="font-size:8px;color:var(--mu)">Fr.II</span></div><div class="ts">Hasta 1 UMA anual (~$40,237)</div></div></label>
+      <label class="tog" onclick="togD(this,'hip')"><div class="tck"></div><div><div class="tl">Intereses hipotecarios reales <span style="font-size:8px;color:var(--mu)">Fr.IV</span></div><div class="ts">Casa-habitación INFONAVIT / bancario</div></div></label>
+      <label class="tog" onclick="togD(this,'gmm')"><div class="tck"></div><div><div class="tl">Seguro de Gastos Médicos Mayores <span style="font-size:8px;color:var(--mu)">Fr.VI</span></div><div class="ts">Prima deducible al 100%</div></div></label>
+      <label class="tog" onclick="togD(this,'trsp')"><div class="tck"></div><div><div class="tl">Transporte escolar obligatorio <span style="font-size:8px;color:var(--mu)">Fr.VII</span></div><div class="ts">Cuando sea obligatorio en el plantel</div></div></label>
+    </div>
+    <div class="g2">
+      <div class="di" id="i-med"><div class="fg"><label>Gastos Médicos y Hospitalarios — año completo</label><input type="number" id="v-med" placeholder="0" min="0"></div></div>
+      <div class="di" id="i-psic"><div class="fg"><label>Psicología y Nutrición — año completo</label><input type="number" id="v-psic" placeholder="0" min="0"></div></div>
+      <div class="di" id="i-lent"><div class="fg"><label>Lentes graduados — año completo</label><input type="number" id="v-lent" placeholder="0" min="0"></div><div style="margin-top:6px;padding:7px 10px;background:rgba(255,201,77,.04);border:1px solid rgba(255,201,77,.15);border-radius:3px;"><p style="font-size:9px;color:var(--mu);line-height:1.7;margin:0;">Tope específico <strong style="color:var(--yel)">$2,500 MXN por persona</strong> (Art. 151 Fr.I). Requiere prescripción médica y CFDI.</p></div></div>
+      <div class="di" id="i-fun"><div class="fg"><label>Gastos funerales — año completo</label><input type="number" id="v-fun" placeholder="0" min="0"></div><div style="margin-top:6px;padding:7px 10px;background:rgba(255,201,77,.04);border:1px solid rgba(255,201,77,.15);border-radius:3px;"><p style="font-size:9px;color:var(--mu);line-height:1.7;margin:0;">Tope <strong style="color:var(--yel)">1 UMA anual ≈ $40,237</strong> para el contribuyente y sus dependientes económicos.</p></div></div>
+      <div class="di" id="i-hip"><div class="fg"><label>Intereses hipotecarios reales — año completo</label><input type="number" id="v-hip" placeholder="0" min="0"></div></div>
+      <div class="di" id="i-gmm"><div class="fg"><label>Prima GMM — año completo</label><input type="number" id="v-gmm" placeholder="0" min="0"></div></div>
+      <div class="di" id="i-trsp"><div class="fg"><label>Transporte escolar — año completo</label><input type="number" id="v-trsp" placeholder="0" min="0"></div></div>
+    </div>
+    <div style="margin-top:14px;padding:10px 13px;background:rgba(255,69,96,.04);border:1px solid rgba(255,69,96,.2);border-radius:4px;display:flex;gap:9px;align-items:flex-start;">
+      <span style="font-size:14px;flex-shrink:0;">⚠️</span>
+      <p style="font-size:9px;color:var(--mu);line-height:1.8;margin:0;">Estos conceptos <strong style="color:var(--b2)">compiten entre sí</strong> dentro del tope global: <strong style="color:var(--red)">min(15% ingreso, 5 UMAs ≈ $201,188)</strong>. Prioriza gastos médicos y hospitalarios — mayor potencial sin sub-límite.</p>
+    </div>
+  </div>
+</div>
+
+<!-- BALDE 2: Art.151 Frac.V — Fondo de Libertad Absoluta -->
+<div class="balde-card b2">
+  <div class="balde-hdr clickable" onclick="toggleBalde('b2-body',this)">
+    <div class="balde-num" style="color:var(--ac)">2</div>
+    <div class="balde-meta">
+      <div class="balde-title">Art. 151 Fr. V — Fondo de Libertad Absoluta</div>
+      <div class="balde-sub">Límite propio independiente: min(10% ingreso, 5 UMAs) · <strong style="color:var(--ac)">NO compite con Balde 1</strong></div>
+    </div>
+    <span class="balde-ico">▼</span>
+  </div>
+  <div class="balde-body" id="b2-body">
+    <div class="dg" id="dg2">
+      <label class="tog" onclick="togD(this,'afore')"><div class="tck"></div><div><div class="tl">AFORE — Aportaciones complementarias</div><div class="ts">Subcuenta de aportaciones complementarias</div></div></label>
+      <label class="tog" onclick="togD(this,'ppr')"><div class="tck"></div><div><div class="tl">Plan Personal de Retiro (PPR)</div><div class="ts">Límite conjunto con AFORE: min(10% ingreso, 5 UMAs)</div></div></label>
+    </div>
+    <div class="g2">
+      <div class="di" id="i-afore"><div class="fg"><label>AFORE voluntaria — año completo</label><input type="number" id="v-afore" placeholder="24,000" min="0"></div></div>
+      <div class="di" id="i-ppr"><div class="fg"><label>PPR — aportación anual</label><input type="number" id="v-ppr" placeholder="60,000" min="0"></div></div>
+    </div>
+    <div style="margin-top:14px;padding:10px 13px;background:rgba(61,255,192,.04);border:1px solid rgba(61,255,192,.15);border-radius:4px;display:flex;gap:9px;align-items:flex-start;">
+      <span style="font-size:14px;flex-shrink:0;">✅</span>
+      <p style="font-size:9px;color:var(--mu);line-height:1.8;margin:0;">Por el <strong style="color:var(--ac)">último párrafo del Art. 151</strong>, este balde <strong style="color:var(--ac)">no compite con el tope del 15%</strong>. PPR y AFORE: <strong style="color:var(--ac)">min(10% ingreso, 5 UMAs ≈ $201,188)</strong>. Puedes maximizar ambos baldes simultáneamente.</p>
+    </div>
+  </div>
+</div>
+
+<!-- BALDE 3: Art.151 Fr.III — Donativos -->
+<div class="balde-card b3">
+  <div class="balde-hdr clickable" onclick="toggleBalde('b3-body',this)">
+    <div class="balde-num" style="color:var(--yel)">3</div>
+    <div class="balde-meta">
+      <div class="balde-title">Art. 151 Fr. III — Tú decides el destino de tus impuestos. (Donativos)</div>
+      <div class="balde-sub">Límite independiente: 7% del ingreso acumulable · <strong style="color:var(--ac)">NO compite con Balde 1</strong></div>
+    </div>
+    <span class="balde-ico">▼</span>
+  </div>
+  <div class="balde-body" id="b3-body">
+    <div class="dg" id="dg3">
+      <label class="tog" onclick="togD(this,'don')"><div class="tck"></div><div><div class="tl">Donativos autorizados <span style="font-size:8px;color:var(--mu)">Fr.III</span></div><div class="ts">Instituciones con autorización SAT · con CFDI</div></div></label>
+    </div>
+    <div class="g2">
+      <div class="di" id="i-don"><div class="fg"><label>Donativos — año completo</label><input type="number" id="v-don" placeholder="0" min="0"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- BALDE 4: Art.185 — El Acelerador de Inversión -->
+<div class="balde-card b4">
+  <div class="balde-hdr clickable" onclick="toggleBalde('b4-body',this)">
+    <div class="balde-num" style="color:var(--b2)">4</div>
+    <div class="balde-meta">
+      <div class="balde-title">Art. 185 LISR — El Acelerador de Inversión (con Préstamo del SAT)🏎️💨</div>
+      <div class="balde-sub">NO es deducción del Art. 151 · Límite fijo $152,000 · Totalmente independiente</div>
+    </div>
+    <span class="balde-ico">▼</span>
+  </div>
+  <div class="balde-body" id="b4-body">
+    <div class="dg" id="dg4">
+      <label class="tog" onclick="togD(this,'cpa')"><div class="tck"></div><div><div class="tl">Depósitos en cuentas personales especiales para el ahorro</div><div class="ts">Art. 185 · Límite fijo $152,000 anual</div></div></label>
+    </div>
+    <div class="g2">
+      <div class="di" id="i-cpa"><div class="fg"><label>Depósitos cuenta personal de ahorro — año completo</label><input type="number" id="v-cpa" placeholder="0" min="0"></div></div>
+    </div>
+    <div style="margin-top:14px;padding:10px 13px;background:rgba(61,155,255,.04);border:1px solid rgba(61,155,255,.2);border-radius:4px;display:flex;gap:9px;align-items:flex-start;">
+      <span style="font-size:14px;flex-shrink:0;">💼</span>
+      <p style="font-size:9px;color:var(--mu);line-height:1.8;margin:0;">Es un <strong style="color:var(--b2)">estímulo fiscal autónomo</strong>. Reduce la base gravable hasta $152,000, independiente de cualquier otro límite.</p>
+    </div>
+  </div>
+</div>
+
+<!-- BALDE 5: Decreto Presidencial — Colegiaturas -->
+<div class="balde-card b5">
+  <div class="balde-hdr clickable" onclick="toggleBalde('b5-body',this)">
+    <div class="balde-num" style="color:#a78bfa">5</div>
+    <div class="balde-meta">
+      <div class="balde-title">Decreto Presidencial — Colegiaturas</div>
+      <div class="balde-sub">Fuera del Art. 151 · Límites por nivel educativo · <strong style="color:#a78bfa">NO computa para el 15%</strong></div>
+    </div>
+    <span class="balde-ico">▼</span>
+  </div>
+  <div class="balde-body" id="b5-body">
+    <div class="dg" id="dg5">
+      <label class="tog" onclick="togD(this,'col')"><div class="tck"></div><div><div class="tl">Colegiaturas</div><div class="ts">Límite anual por nivel educativo · Decreto</div></div></label>
+    </div>
+    <div class="g2">
+      <div class="di" id="i-col"><div class="fg"><label>Colegiaturas — año completo</label><input type="number" id="v-col" placeholder="0" min="0"></div></div>
+    </div>
+    <div style="margin-top:14px;padding:10px 13px;background:rgba(167,139,250,.04);border:1px solid rgba(167,139,250,.2);border-radius:4px;display:flex;gap:9px;align-items:flex-start;">
+      <span style="font-size:14px;flex-shrink:0;">🎓</span>
+      <p style="font-size:9px;color:var(--mu);line-height:1.8;margin:0;">Fundamento: <strong style="color:#a78bfa">Decreto Presidencial</strong>, no Art. 151. Límites: Preescolar $14,200 · Primaria $12,900 · Secundaria $19,900 · Preparatoria $24,500 · Técnico $17,100. <strong style="color:#a78bfa">No computa para el 15%</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<button class="btn" onclick="calcular()" style="background:transparent;border:1px solid var(--ac);color:var(--ac);">→ CALCULAR MI SITUACIÓN FISCAL</button>
+
+<!-- ══════════════════════════════════════════
+     RESULTADOS
+══════════════════════════════════════════ -->
+<div id="res">
+
+<!-- Banner datos desactualizados -->
+<div id="stale-banner" style="margin-top:20px;padding:11px 16px;background:rgba(255,201,77,.06);border:1px solid rgba(255,201,77,.3);border-radius:4px;display:none;align-items:center;gap:10px;">
+  <span style="font-size:14px;flex-shrink:0;">⚠</span>
+  <span style="font-size:10px;color:var(--yel);flex:1;">Modificaste un campo — los resultados pueden estar desactualizados.</span>
+  <button onclick="calcular()" style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:6px 12px;background:rgba(255,201,77,.12);border:1px solid rgba(255,201,77,.4);color:var(--yel);border-radius:3px;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;">→ Recalcular</button>
+</div>
+
+<!-- ── 03 · RESUMEN EJECUTIVO ── -->
+<div class="sec" style="margin-top:40px;"><span class="sec-num">03</span> Resumen del ejercicio fiscal</div>
+
+<!-- Resumen en lenguaje natural (#12) -->
+<div id="resumen-natural" style="padding:14px 18px;background:var(--sur);border:1px solid var(--bor);border-left:3px solid var(--ac);border-radius:0 4px 4px 0;margin-bottom:12px;font-size:12px;color:var(--tx);line-height:1.8;" class="anim d1"></div>
+
+<!-- Fila 1: tres KPIs principales -->
+<div class="g3 anim d1">
+  <div class="card accent">
+    <div class="ch"><span class="dot" style="background:var(--b2)"></span>Ingreso bruto total</div>
+    <div class="num b2" id="r-bruto">—</div>
+    <div class="numlab">MXN / año</div>
+  </div>
+  <div class="card dim-top">
+    <div class="ch"><span class="dot" style="background:var(--mu)"></span>ISR retenido por empleador</div>
+    <div class="num mu" id="r-isr-ret">—</div>
+    <div class="numlab">ya pagado vía nómina</div>
+  </div>
+  <div class="card accent">
+    <div class="ch"><span class="dot"></span>Ingreso neto estimado</div>
+    <div class="num ac" id="r-neto">—</div>
+    <div style="display:flex;gap:16px;margin-top:8px;">
+      <div><div class="num" id="r-ef" style="font-size:1.2rem;color:var(--b3)">—</div><div class="numlab">tasa efectiva</div></div>
+      <div><div class="num" id="r-mg" style="font-size:1.2rem;color:var(--yel)">—</div><div class="numlab">tasa marginal</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DECLARACIÓN ANUAL: Panel único consolidado ── -->
+<div class="dec-panel anim d2 mb">
+  <div class="dec-panel-header" onclick="toggleDecPanel()">
+    <div>
+      <div class="dec-panel-title">Declaración anual — Resultado a presentar en abril</div>
+      <div style="font-size:9px;color:var(--mu);margin-top:4px;letter-spacing:.5px;" id="dec-panel-sub">Haz clic para ver el desglose</div>
+    </div>
+    <div class="dec-header-right">
+      <div class="dec-result-num" id="r-resultado-header" style="color:var(--yel)">—</div>
+      <div class="dec-toggle-ico" id="dec-main-ico">▼</div>
+    </div>
+  </div>
+  <div class="dec-body" id="dec-body" style="display:none;">
+    <!-- Renderizado por JS -->
+  </div>
+</div>
+
+<!-- ── Score + Simulador (causa → efecto en la misma fila) ── -->
+<div class="g2 anim d2">
+  <div class="card">
+    <div class="ch"><span class="dot"></span>Score de salud fiscal</div>
+    <div class="sw">
+      <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="96" height="96"><circle cx="48" cy="48" r="38" fill="none" stroke="var(--bor)" stroke-width="7"/><circle id="sarc" cx="48" cy="48" r="38" fill="none" stroke="var(--ac)" stroke-width="7" stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="238.76" transform="rotate(-90 48 48)" style="transition:stroke-dashoffset 1s ease;"/></svg>
+        <div style="position:absolute;text-align:center;">
+          <div id="snum" style="font-family:'Fraunces',serif;font-size:2rem;font-weight:900;line-height:1;color:var(--ac)">—</div>
+          <div style="font-size:8px;color:var(--mu);letter-spacing:1px;">/ 100</div>
+        </div>
+      </div>
+      <div class="sd" id="sdet"></div>
+    </div>
+    <div id="smsg" style="margin-top:10px;font-size:9px;color:var(--mu);line-height:1.8;padding:9px 11px;background:var(--bg);border-radius:3px;border:1px solid var(--bor);"></div>
+  </div>
+
+  <!-- Simulador — junto al score para retroalimentación inmediata -->
+  <div class="card">
+    <div class="ch"><span class="dot" style="background:var(--b2)"></span>Simulador "¿qué pasa si...?"</div>
+
+    <!-- Balde 2: PPR + AFORE con tope conjunto visible -->
+    <div style="margin-bottom:14px;padding:10px 12px;background:rgba(61,255,192,.03);border:1px solid rgba(61,255,192,.12);border-radius:4px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:9px;color:var(--ac);letter-spacing:1px;text-transform:uppercase;">Balde 2 — Fondo de Libertad Absoluta</span>
+        <span style="font-size:9px;color:var(--mu);">Tope conjunto: <span id="sim-lim-retiro" style="color:var(--tx)">—</span></span>
+      </div>
+      <!-- Barra de progreso del tope conjunto -->
+      <div style="height:3px;background:var(--bor);border-radius:2px;margin-bottom:10px;">
+        <div id="sim-retiro-bar" style="height:100%;background:var(--ac);border-radius:2px;width:0%;transition:width .3s;"></div>
+      </div>
+      <div class="simr"><div class="simt"><span class="simn">Aportación adicional PPR</span><span class="simv" id="sv-ppr">$0</span></div><input type="range" id="sl-ppr" min="0" max="152000" step="1000" value="0" oninput="simular('ppr')"></div>
+      <div class="simr" style="margin-top:6px;"><div class="simt"><span class="simn">Aportación adicional AFORE</span><span class="simv" id="sv-afore">$0</span></div><input type="range" id="sl-afore" min="0" max="100000" step="1000" value="0" oninput="simular('afore')"></div>
+    </div>
+
+    <!-- Balde 1: Gastos médicos -->
+    <div style="margin-bottom:14px;padding:10px 12px;background:rgba(255,69,96,.03);border:1px solid rgba(255,69,96,.12);border-radius:4px;">
+      <div style="font-size:9px;color:var(--red);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Balde 1 — El Saldo a Favor por Existir</div>
+      <div class="simr"><div class="simt"><span class="simn">Gastos médicos adicionales</span><span class="simv" id="sv-med">$0</span></div><input type="range" id="sl-med" min="0" max="80000" step="500" value="0" oninput="simular('med')"></div>
+    </div>
+
+    <!-- Balde 4: CPA — Depósitos cuenta personal ahorro -->
+    <div style="margin-bottom:14px;padding:10px 12px;background:rgba(77,159,255,.03);border:1px solid rgba(77,159,255,.12);border-radius:4px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:9px;color:var(--b2);letter-spacing:1px;text-transform:uppercase;">Balde 4 — Cuenta personal ahorro</span>
+        <span style="font-size:9px;color:var(--mu);">Tope: $152,000</span>
+      </div>
+      <div class="simr"><div class="simt"><span class="simn">Depósitos CPA adicionales</span><span class="simv" id="sv-cpa">$0</span></div><input type="range" id="sl-cpa" min="0" max="152000" step="1000" value="0" oninput="simular('cpa')"></div>
+    </div>
+
+    <div class="simbox">
+      <div class="sbi"><div class="sbl">ISR actual</div><div class="sbv g" id="si-act">—</div></div>
+      <div class="sbi"><div class="sbl">ISR simulado</div><div class="sbv" id="si-new" style="color:var(--b2)">—</div></div>
+      <div class="sbi"><div class="sbl">Ahorro extra</div><div class="sbv" id="si-sav" style="color:var(--yel)">—</div></div>
+    </div>
+    <div id="si-un" style="display:flex;flex-direction:column;gap:0;margin-top:8px;font-size:9px;"></div>
+  </div>
+</div>
+
+<!-- ── Distribución del ingreso (ahora fila separada) ── -->
+<div class="card mb anim d2">
+  <div class="ch"><span class="dot"></span>Distribución del ingreso</div>
+  <div id="bars"></div>
+</div>
+
+<!-- ── Tabla ISR colapsable ── -->
+<div class="card mb anim d3">
+  <div class="ch collap-hdr" onclick="var b=document.getElementById('isrt-b');b.classList.toggle('open');document.getElementById('isrt-ico').textContent=b.classList.contains('open')?'▾':'▸'">
+    <span class="dot"></span>Tablas ISR 2026 — tu rango activo
+    <span id="isrt-ico" style="margin-left:auto;color:var(--mu);font-size:10px;">▸</span>
+  </div>
+  <div id="isrt-b" class="collap-body">
+    <table class="xt"><thead><tr><th>Límite inferior</th><th>Límite superior</th><th>Cuota fija</th><th>% s/ excedente</th></tr></thead><tbody id="xtb"></tbody></table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     04 · PLANEACIÓN (proyección + instrumentos)
+══════════════════════════════════════════ -->
+<div class="sec"><span class="sec-num">04</span> Planeación y optimización</div>
+
+<div class="anim d3">
+  <!-- Proyección -->
+  <div class="card">
+    <div class="ch"><span class="dot" style="background:var(--b3)"></span>Proyección de inversión</div>
+
+    <!-- Fila 1: Saldos actuales -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:8px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">
+        Saldo actual por instrumento
+        <span style="font-size:8px;color:var(--bor2);font-weight:400;letter-spacing:0;text-transform:none;"> — opcional, se proyecta como capital inicial</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+
+        <!-- PPR -->
+        <div class="pi-card ppr">
+          <div class="pi-label">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--b2);flex-shrink:0;display:inline-block;"></span>
+            PPR / AFORE
+          </div>
+          <div style="display:flex;align-items:baseline;gap:2px;">
+            <span class="pi-prefix">$</span>
+            <input type="number" id="pi-ppr" class="pi-input" placeholder="0" min="0" oninput="drawChart()">
+          </div>
+          <div class="pi-sub" style="color:var(--b2);opacity:.7;">9% anual estimado</div>
+        </div>
+
+        <!-- S&P 500 / ETFs -->
+        <div class="pi-card etf">
+          <div class="pi-label">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--b3);flex-shrink:0;display:inline-block;"></span>
+            S&P 500 / ETFs
+          </div>
+          <div style="display:flex;align-items:baseline;gap:2px;">
+            <span class="pi-prefix">$</span>
+            <input type="number" id="pi-etf" class="pi-input" placeholder="0" min="0" oninput="drawChart()">
+          </div>
+          <div class="pi-sub" style="color:var(--b3);opacity:.7;">11% anual estimado</div>
+        </div>
+
+        <!-- Renta Fija -->
+        <div class="pi-card rf">
+          <div class="pi-label">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--ac);flex-shrink:0;display:inline-block;"></span>
+            Renta fija
+          </div>
+          <div style="display:flex;align-items:baseline;gap:2px;">
+            <span class="pi-prefix">$</span>
+            <input type="number" id="pi-rf" class="pi-input" placeholder="0" min="0" oninput="drawChart()">
+          </div>
+          <div class="pi-sub">
+            <input type="number" id="pi-rf-rate" class="pi-rate" placeholder="7" min="0" max="30" step="0.1" value="7" oninput="drawChart()">
+            <span style="color:var(--mu);">% anual</span>
+          </div>
+          <!-- Nota ISR neto RF (#14) -->
+          <div id="rf-isr-note" style="display:none;margin-top:8px;padding:6px 8px;background:rgba(61,255,192,.04);border:1px solid rgba(61,255,192,.1);border-radius:3px;">
+            <div style="font-size:8px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Rendimiento neto real post-ISR</div>
+            <div style="font-size:10px;color:var(--ac);" id="rf-isr-note-val">—</div>
+            <div style="font-size:8px;color:var(--mu);margin-top:3px;">Tasa marg. <input type="number" id="rf-isr-tasa" value="30" min="1" max="35" step="1" oninput="drawChart()" style="background:transparent;border:none;border-bottom:1px solid var(--bor2);color:var(--ac);font-family:'DM Mono',monospace;font-size:8px;width:22px;padding:0;outline:none;text-align:center;">% · inflación <span id="rf-isr-infl">4.2</span>%</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Fila 2: Aportación mensual + plazo -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;">
+        <div style="font-size:8px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Aportación mensual nueva</div>
+        <div class="pm-wrap">
+          <span class="pm-prefix">$</span>
+          <input type="number" id="pm" class="pm-input" placeholder="5,000" oninput="drawChart()">
+        </div>
+      </div>
+      <div style="padding-top:20px;">
+        <div class="pbtns">
+          <button class="pb on" onclick="setP(5,this)">5a</button>
+          <button class="pb" onclick="setP(10,this)">10a</button>
+          <button class="pb" onclick="setP(20,this)">20a</button>
+          <button class="pb" onclick="setP(30,this)">30a</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 gráficas individuales -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;" id="charts-grid">
+
+      <!-- PPR / AFORE -->
+      <div style="background:var(--sur2);border:1px solid rgba(77,159,255,.15);border-radius:6px;padding:12px;border-top:2px solid var(--b2);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <div style="font-size:8px;color:var(--b2);letter-spacing:1.5px;text-transform:uppercase;">PPR / AFORE</div>
+          <div style="font-size:8px;color:var(--mu);">9% est.</div>
+        </div>
+        <div style="position:relative;width:100%;height:120px;">
+          <canvas id="pc-ppr"></canvas>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;">
+          <div style="font-size:8px;color:var(--mu);">Proyección A<span id="lbl-yr-ppr">5</span></div>
+          <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--b2);" id="pv-ppr">—</div>
+        </div>
+        <div style="font-size:8px;color:var(--b2);opacity:.55;margin-top:2px;text-align:right;" id="gain-ppr"></div>
+      </div>
+
+      <!-- S&P 500 / ETFs -->
+      <div style="background:var(--sur2);border:1px solid rgba(255,122,69,.15);border-radius:6px;padding:12px;border-top:2px solid var(--b3);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <div style="font-size:8px;color:var(--b3);letter-spacing:1.5px;text-transform:uppercase;">S&P 500 / ETFs</div>
+          <div style="font-size:8px;color:var(--mu);">11% est.</div>
+        </div>
+        <div style="position:relative;width:100%;height:120px;">
+          <canvas id="pc-etf"></canvas>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;">
+          <div style="font-size:8px;color:var(--mu);">Proyección A<span id="lbl-yr-etf">5</span></div>
+          <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--b3);" id="pv-etf">—</div>
+        </div>
+        <div style="font-size:8px;color:var(--b3);opacity:.55;margin-top:2px;text-align:right;" id="gain-etf"></div>
+      </div>
+      <!-- Renta Fija -->
+      <div style="background:var(--sur2);border:1px solid rgba(61,255,192,.15);border-radius:6px;padding:12px;border-top:2px solid var(--ac);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <div style="font-size:8px;color:var(--ac);letter-spacing:1.5px;text-transform:uppercase;">Renta fija</div>
+          <div style="font-size:8px;color:var(--mu);" id="rf-rate-lbl">7%</div>
+        </div>
+        <div style="position:relative;width:100%;height:120px;">
+          <canvas id="pc-rf"></canvas>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;">
+          <div style="font-size:8px;color:var(--mu);">Proyección A<span id="lbl-yr-rf">5</span></div>
+          <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--ac);" id="pv-rf">—</div>
+        </div>
+        <div style="font-size:8px;color:var(--ac);opacity:.55;margin-top:2px;text-align:right;" id="gain-rf"></div>
+      </div>
+
+
+    </div>
+
+    <!-- Gráfica total portafolio -->
+    <div style="background:var(--sur2);border:1px solid var(--bor2);border-radius:6px;padding:14px;margin-top:10px;border-top:2px solid var(--dim);" id="chart-total-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+        <div style="font-size:8px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;">Total portafolio — todas las posiciones</div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="display:flex;align-items:center;gap:5px;font-size:8px;color:var(--b2);"><span style="width:10px;height:2px;background:var(--b2);border-radius:1px;display:inline-block;"></span>PPR/AFORE</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:8px;color:var(--b3);"><span style="width:10px;height:2px;background:var(--b3);border-radius:1px;display:inline-block;"></span>ETFs</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:8px;color:var(--ac);"><span style="width:10px;height:2px;background:var(--ac);border-radius:1px;display:inline-block;"></span>Renta fija</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:8px;color:var(--tx);"><span style="width:10px;height:3px;background:var(--tx);border-radius:1px;display:inline-block;"></span>Total</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:8px;color:var(--yel);"><span style="width:10px;height:0;border-top:2px dashed var(--yel);display:inline-block;"></span>Real hoy</div>
+        </div>
+      </div>
+      <div style="position:relative;width:100%;height:160px;">
+        <canvas id="pc-total"></canvas>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="font-size:8px;color:var(--mu);">Portafolio proyectado A<span id="lbl-yr-total">5</span></div>
+        <div style="text-align:right;">
+          <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:900;color:var(--tx);" id="pv-total">—</div>
+          <div style="font-size:9px;color:var(--ac);margin-top:2px;" id="gain-total"></div>
+          <div style="font-size:9px;color:var(--yel);margin-top:3px;opacity:.8;" id="pv-total-real"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total consolidado -->
+    <div id="psums" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- Instrumentos en grid compacto -->
+<div class="card mb anim d4">
+  <div class="ch"><span class="dot"></span>Instrumentos recomendados según tu perfil</div>
+  <div class="g3" id="invg" style="margin-bottom:0;"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     05 · PLAN + CALENDARIO (lado a lado)
+══════════════════════════════════════════ -->
+<div class="sec"><span class="sec-num">05</span> Plan de acción y calendario fiscal</div>
+<div class="g2 anim d4">
+  <div class="card">
+    <div class="ch"><span class="dot"></span>Qué hacer y en qué orden</div>
+    <div id="plan" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="dot"></span>Fechas clave 2026</div>
+    <div class="cg" id="cal"></div>
+  </div>
+</div>
+
+<div class="disc"><strong>Aviso:</strong> Herramienta informativa. Cálculos basados en tablas ISR 2026 del SAT, Ley del ISR vigente y tasas Banxico de marzo 2026. Consulta a un contador público o sat.gob.mx para declaraciones oficiales.</div>
+
+</div><!-- /res -->
+</div><!-- /wrap -->
+
+<script>
+var G={};
+var plazo=5;
+// Tarifa anual ISR 2026 — Art. 152 LISR
+// Fuente: Anexo 8 de la Resolución Miscelánea Fiscal 2026 (DOF 29-dic-2025)
+// Campos: li=límite inferior, ls=límite superior, cf=cuota fija, p=% sobre excedente
+// Actualizar cada ejercicio fiscal con el Anexo 8 publicado por el SAT en el DOF de diciembre
+var ISR=[
+  {li:.01,       ls:8952.49,      cf:0,           p:1.92},
+  {li:8952.5,    ls:75984.55,     cf:171.88,      p:6.4},
+  {li:75984.56,  ls:133536.07,    cf:4461.94,     p:10.88},
+  {li:133536.08, ls:155229.8,     cf:10723.55,    p:16},
+  {li:155229.81, ls:185852.57,    cf:14194.54,    p:17.92},
+  {li:185852.58, ls:374837.88,    cf:19682.13,    p:21.36},
+  {li:374837.89, ls:590795.99,    cf:60049.4,     p:23.52},
+  {li:590796,    ls:1127926.84,   cf:110842.74,   p:30},
+  {li:1127926.85,ls:1503902.46,   cf:271981.99,   p:32},
+  {li:1503902.47,ls:4511707.37,   cf:392294.17,   p:34},
+  {li:4511707.38,ls:Infinity,     cf:1414947.85,  p:35}
+];
+function toCents(v){return Math.round(v*100);}
+function fromCents(c){return c/100;}
+function calcISR(x){
+  // Opera en centavos para evitar errores de punto flotante
+  var xc=toCents(Math.max(0,x));
+  var b=ISR.find(function(r){return xc>=toCents(r.li)&&xc<=toCents(r.ls);})||ISR[ISR.length-1];
+  var isr=fromCents(toCents(b.cf)+Math.round((xc-toCents(b.li))*b.p)/100);
+  return{v:Math.max(0,isr),b:b};
+}
+function fmt(n){return'$'+Math.round(n).toLocaleString('es-MX');}
+function fpc(n){return(+n).toFixed(2)+'%';}
+function gv(id){var e=document.getElementById(id);return e?(parseFloat(e.value)||0):0;}
+function el(id){return document.getElementById(id);}
+
+// ── #6 Banner datos desactualizados ──
+var _calculado=false;
+function marcarStale(){
+  if(!_calculado)return;
+  var b=el('stale-banner');
+  if(b)b.style.display='flex';
+}
+// Adjuntar marcarStale a todos los inputs de la sección 01 al cargar
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('#res ~ * input, .card input, .card select').forEach(function(inp){
+    inp.addEventListener('input',marcarStale);
+  });
+  // También los inputs del form de entrada
+  document.querySelectorAll('input[type=number], input[type=text]').forEach(function(inp){
+    inp.addEventListener('input',marcarStale);
+  });
+});
+
+// ── Baldes colapsables ──
+function toggleBalde(bodyId, hdr){
+  var body = el(bodyId);
+  var open = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  hdr.classList.toggle('open', !open);
+}
+
+
+function toggleOtrosIngresos(){
+  var body=el('otros-body');
+  var tog=el('otros-toggle');
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  tog.classList.toggle('open',!open);
+}
+
+// ── #12 Resumen en lenguaje natural ──
+function renderResumenNatural(G){
+  var el2=el('resumen-natural');
+  if(!el2)return;
+  var porCada100=G.isrDeterminado/Math.max(1,G.ingresos)*100;
+  var teQueda=100-porCada100;
+  var resultado=G.saldoFavorTotal>0
+    ? 'Recuperas <strong style="color:var(--ac)">'+fmt(G.saldoFavorTotal)+'</strong> en tu declaración de abril.'
+    : (G.isrAPagar>0
+        ? 'Pagarás <strong style="color:var(--red)">'+fmt(G.isrAPagar)+'</strong> adicionales al presentar en abril.'
+        : 'Quedas en <strong style="color:var(--mu)">equilibrio</strong> con el fisco.');
+  var deduccion=G.dedAp>0
+    ? ' Tus deducciones te ahorraron <strong style="color:var(--ac)">'+fmt(G.ahorro)+'</strong> de ISR.'
+    : ' Sin deducciones aplicadas — hay oportunidad de reducir tu carga.';
+  el2.innerHTML='De cada <strong style="color:var(--tx)">$100</strong> que ganas, '
+    +'<strong style="color:var(--red)">$'+porCada100.toFixed(1)+'</strong> van a ISR '
+    +'y te quedan <strong style="color:var(--ac)">$'+teQueda.toFixed(1)+'</strong> líquidos. '
+    +resultado+deduccion;
+}
+
+function togD(elem,k){
+  elem.classList.toggle('on');
+  elem.querySelector('.tck').textContent=elem.classList.contains('on')?'✓':'';
+  var inp=document.getElementById('i-'+k);
+  if(inp)inp.classList.toggle('on',elem.classList.contains('on'));
+}
+function isOn(k){
+  var items=document.querySelectorAll('.tog');
+  for(var i=0;i<items.length;i++){
+    var oc=items[i].getAttribute('onclick')||'';
+    if(oc.indexOf("'"+k+"'")>-1)return items[i].classList.contains('on');
+  }
+  return false;
+}
+
+// ── PERFIL FAMILIAR — triggers inteligentes ──
+var _perfil = { conyuge:'no', hijos:'0' };
+
+function setPerfil(key, val, btn) {
+  // Marcar botón activo
+  var group = btn.parentElement;
+  group.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  _perfil[key] = val;
+
+  // Actualizar input oculto de hijos para el cálculo
+  if (key === 'hijos') {
+    var n = val === '3+' ? 3 : parseInt(val);
+    document.getElementById('hijos').value = n;
+  }
+
+  // ── Acciones por key ──
+  if (key === 'conyuge') {
+    var hint = document.getElementById('hint-conyuge');
+    hint.style.display = val === 'si' ? 'block' : 'none';
+    // Activar gastos médicos si no están ya activos
+    if (val === 'si') autoActivar('med', 'Gastos médicos del cónyuge incluidos');
+  }
+
+  if (key === 'hijos') {
+    var n = val === '3+' ? 3 : parseInt(val);
+    var hint = document.getElementById('hint-hijos');
+    if (n > 0) {
+      hint.style.display = 'block';
+      var msgs = [];
+      msgs.push('✓ Colegiaturas activadas en Balde 5 (límite hasta $24,500 × ' + n + ' hijo' + (n>1?'s':'') + ')');
+      msgs.push('✓ Gastos médicos pediátricos activados en Balde 1');
+      if (n >= 2) msgs.push('✓ Seguro GMM familiar activado en Balde 1');
+      hint.textContent = msgs.join(' · ');
+      autoActivar('med');
+      autoActivar('col');
+      if (n >= 2) autoActivar('gmm');
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
+}
+
+function autoActivar(k) {
+  // Busca el toggle con ese key y lo activa si no lo está
+  var items = document.querySelectorAll('.tog');
+  for (var i = 0; i < items.length; i++) {
+    var oc = items[i].getAttribute('onclick') || '';
+    if (oc.indexOf("'" + k + "'") > -1 && !items[i].classList.contains('on')) {
+      items[i].click();
+      break;
+    }
+  }
+}
+
+function calcular(){
+  var salM=gv('salM');
+  if(!salM){alert('Ingresa tu salario mensual.');return;}
+  var UMA=110.24,umaA=UMA*365;
+  var salPrestBruto=salM*12+gv('prest');
+  var exentos=gv('exentos'); // ingresos exentos: fondo ahorro, vales, etc.
+  var imss=salM*0.045*12;
+
+  // RENTA FIJA
+  var rfCap=gv('rfCap'),rfRend=gv('rfRend');
+  var inpcPct=(parseFloat(el('inpc').value)||4.20)/100;
+  var ajusteInfl=rfCap*inpcPct;
+  var interesRealRaw=rfRend-ajusteInfl;
+  var interesReal=Math.max(0,interesRealRaw);
+  var isrRetenidoRF=gv('isrRetInt'); // retenido real reportado por instituciones
+
+  // DIVIDENDOS — ya vienen piramidados del SAT
+  var divAcum=gv('divNeto'); // monto acumulable (ya piramidado)
+  var divPiramidado=divAcum; // sin transformación adicional
+  var creditoISRCorp=gv('isrCorp'); // ISR corporativo acreditable real
+
+  // CONSOLIDACIÓN — ingresos acumulables = bruto − exentos
+  var ingresosAcumSal = Math.max(0, salPrestBruto - exentos);
+  var totalConsolidado = ingresosAcumSal + interesReal + divPiramidado;
+  var ingresos = totalConsolidado; // siempre consolida todo
+  var hijos=parseInt(el('hijos').value)||0;
+  var deds={};
+  var ingresoBrutoTotal=salPrestBruto+rfRend+(divAcum>0?divAcum:0);
+
+  // ══ BALDE 1: Art.151 Fr.I,II,IV,VI,VII — sujeto al tope global ══
+  var limG=Math.min(ingresos*0.15,5*umaA); // tope global: min(15% ingreso, 5 UMAs)
+  var b1={};var b1Tot=0;
+  function addB1(k,lbl,val,lim){
+    if(!isOn(k))return;
+    var ap=lim!==null?Math.min(val,lim):val;
+    b1[lbl]={val:val,ap:ap,lim:lim,bucket:1};
+    b1Tot+=ap;
+  }
+  addB1('med','Gastos Médicos y Hospitalarios (Fr.I)',gv('v-med'),null);
+  addB1('psic','Psicología y Nutrición (Fr.I)',gv('v-psic'),null);
+  addB1('lent','Lentes graduados (Fr.I)',gv('v-lent'),2500);
+  addB1('fun','Gastos Funerales (Fr.II)',gv('v-fun'),umaA); // tope 1 UMA anual
+  addB1('hip','Intereses Hipotecarios (Fr.IV)',gv('v-hip'),null);
+  addB1('gmm','Seguro GMM (Fr.VI)',gv('v-gmm'),null);
+  addB1('trsp','Transporte Escolar (Fr.VII)',gv('v-trsp'),null);
+  var b1Ap=Math.min(b1Tot,limG); // aplica tope global
+  var b1Excedente=Math.max(0,b1Tot-limG);
+  Object.keys(b1).forEach(function(k){deds[k]=b1[k];});
+
+  // ══ BALDE 2: Art.151 Fr.V — Retiro, límite propio independiente ══
+  var limRetiro=Math.min(ingresos*.1,5*umaA); // min(10% ingreso acumulable, 5 UMAs) — LISR Art.151 Fr.V
+  var aforeVal=isOn('afore')?gv('v-afore'):0;
+  var pprVal=isOn('ppr')?gv('v-ppr'):0;
+  var totalRetiro=aforeVal+pprVal;
+  var retiroAp=Math.min(totalRetiro,limRetiro);
+  var ratioAfore=totalRetiro>0?aforeVal/totalRetiro:0;
+  var ratioPpr=totalRetiro>0?pprVal/totalRetiro:0;
+  var exRetiro=Math.max(0,totalRetiro-limRetiro);
+  if(isOn('afore'))deds['AFORE Voluntarias (Fr.V)']={val:aforeVal,ap:retiroAp*ratioAfore,lim:limRetiro,excedente:exRetiro>0?exRetiro*ratioAfore:0,bucket:2};
+  if(isOn('ppr'))deds['Plan Personal de Retiro (Fr.V)']={val:pprVal,ap:retiroAp*ratioPpr,lim:limRetiro,excedente:exRetiro>0?exRetiro*ratioPpr:0,bucket:2};
+  G._retiro={totalRetiro:totalRetiro,retiroAp:retiroAp,limRetiro:limRetiro,excedente:exRetiro,aforeVal:aforeVal,pprVal:pprVal};
+
+  // ══ BALDE 3: Art.151 Fr.III — Donativos, límite propio independiente ══
+  var donVal=isOn('don')?gv('v-don'):0;
+  var limDon=ingresos*0.07;
+  var donAp=Math.min(donVal,limDon);
+  if(isOn('don'))deds['Donativos autorizados (Fr.III)']={val:donVal,ap:donAp,lim:limDon,bucket:3};
+
+  // ══ BALDE 4: Art.185 — Estímulo fiscal autónomo ══
+  var cpaVal=isOn('cpa')?gv('v-cpa'):0;
+  var cpaAp=Math.min(cpaVal,152000);
+  if(isOn('cpa'))deds['Cuenta Personal de Ahorro (Art.185)']={val:cpaVal,ap:cpaAp,lim:152000,bucket:4};
+
+  // ══ BALDE 5: Decreto Presidencial — Colegiaturas ══
+  var colVal=isOn('col')?gv('v-col'):0;
+  var limCol=hijos*24500; // simplificado: nivel preparatoria como default
+  var colAp=isOn('col')?Math.min(colVal,limCol):0;
+  if(isOn('col'))deds['Colegiaturas (Decreto)']={val:colVal,ap:colAp,lim:limCol,bucket:5};
+
+  // ══ TOTAL deducible = suma de los 5 baldes independientes ══
+  var dedAp=b1Ap + retiroAp + donAp + cpaAp + colAp;
+  G._baldes={
+    b1:{items:b1,total:b1Tot,aplicado:b1Ap,tope:limG,excedente:b1Excedente},
+    b2:{total:totalRetiro,aplicado:retiroAp,tope:limRetiro,excedente:exRetiro},
+    b3:{total:donVal,aplicado:donAp,tope:limDon},
+    b4:{total:cpaVal,aplicado:cpaAp,tope:152000},
+    b5:{total:colVal,aplicado:colAp,tope:limCol}
+  };
+
+  // BASE GRAVABLE
+  var baseConsolidada=fromCents(Math.max(0,toCents(ingresos)-toCents(dedAp)));
+  var r0=calcISR(ingresos),r1=calcISR(baseConsolidada);
+  // ISR retenido real por el empleador — capturado directamente del CFDI/declaración
+  var isrEmpleadorInput = gv('isrRetenidoEmp');
+  var isrEmpleador = isrEmpleadorInput > 0 ? isrEmpleadorInput : calcISR(ingresosAcumSal).v;
+
+  // ── DECLARACIÓN ANUAL ──
+  var creditoArt185=0; // Art.185 tratado como deducción (reduce base, no crédito directo)
+  var isrDeterminado=r1.v;
+
+  // RENTA FIJA — ISR ya retenido por instituciones (ingresado por el usuario)
+  var isrDivTotal=0,isrAcumulable=0,creditoAcred=0;
+  var isrBrutoRF=0,isrNetoRF=0,isrRFpendiente=0,saldoFavorRF=0;
+  var tasaMarg=r1.b.p;
+
+  if(rfRend>0&&interesReal>0){
+    // ISR real sobre interés = diferencial entre base con y sin interés real
+    isrBrutoRF = calcISR(baseConsolidada).v - calcISR(Math.max(0, baseConsolidada - interesReal)).v;
+    isrNetoRF=isrBrutoRF-isrRetenidoRF;
+    isrRFpendiente=Math.max(0,isrNetoRF);
+    saldoFavorRF=Math.max(0,-isrNetoRF);
+  } else if(rfRend>0){
+    saldoFavorRF=isrRetenidoRF;
+  }
+
+  // DIVIDENDOS — ISR ponderado real sobre el tramo de dividendos
+  if(divAcum>0){
+    var isrConDiv = calcISR(baseConsolidada).v;
+    var isrSinDiv = calcISR(Math.max(0, baseConsolidada - divAcum)).v;
+    isrAcumulable = isrConDiv - isrSinDiv;
+    creditoAcred=creditoISRCorp;
+    isrDivTotal=Math.max(0,isrAcumulable-creditoAcred);
+  }
+
+  // ISR RETENIDO TOTAL = empleador + retención intereses + retención dividendos
+  var isrRetDivs = gv('isrCorp'); // las retenciones de dividendos son el mismo ISR corporativo
+  var isrTotalRetenido = isrEmpleador + isrRetenidoRF;
+  // Saldo a favor / a cargo del ejercicio (método SAT)
+  // ISR determinado − ISR retenido − crédito ISR corporativo
+  var saldoEjercicio = isrDeterminado - isrTotalRetenido - creditoISRCorp;
+  var saldoFavorTotal = Math.max(0, -saldoEjercicio);
+  var isrAPagar = Math.max(0, saldoEjercicio);
+
+  var isrTotalDeterminado=isrDeterminado;
+  var isrYaPagado=isrTotalRetenido;
+  var isrPendienteTotal=isrAPagar;
+  // Ahorro real = diferencia ISR sin deducciones vs con deducciones (cruza brackets correctamente)
+  var isrSinDed = r0.v;  // ISR sobre ingresos acumulables sin deducir
+  var isrConDed = r1.v;  // ISR sobre base gravable (con deducciones)
+  var ahorroTotal = Math.max(0, isrSinDed - isrConDed);
+
+  // Distribuir el ahorro proporcionalmente entre baldes (para mostrar en UI)
+  var totalDedAp = dedAp || 1;
+  var ahorroB1 = ahorroTotal * (b1Ap / totalDedAp);
+  var ahorroB2 = ahorroTotal * (retiroAp / totalDedAp);
+  var ahorroB3 = ahorroTotal * (donAp / totalDedAp);
+  var ahorroB4 = ahorroTotal * (cpaAp / totalDedAp);
+  var ahorroB5 = ahorroTotal * (colAp / totalDedAp);
+  var saldoFavorDed = ahorroTotal;
+  var ahorro = ahorroTotal;
+  // Patch ahorro into _baldes now that tasaMarg is known
+  G._baldes.b1.ahorro=ahorroB1;
+  G._baldes.b2.ahorro=ahorroB2;
+  G._baldes.b3.ahorro=ahorroB3;
+  G._baldes.b4.ahorro=ahorroB4;
+  G._baldes.b5.ahorro=ahorroB5;
+  var ef=(isrTotalDeterminado/Math.max(1,ingresos))*100;
+  var neto=ingresosAcumSal+rfRend+divAcum-isrEmpleador-isrAPagar-imss;
+
+  // ── Constructor de estado global — evita sobreescrituras parciales y claves duplicadas (#16, #17) ──
+  var retiro = G._retiro; // preservar refs calculadas antes del reset
+  var baldes = G._baldes;
+  G = {
+    // Ingresos
+    salM:salM, salPrestBruto:salPrestBruto, exentos:exentos,
+    ingresosAcumSal:ingresosAcumSal, ingresoBrutoTotal:ingresoBrutoTotal,
+    rfCap:rfCap, rfRend:rfRend, inpcPct:inpcPct, ajusteInfl:ajusteInfl,
+    interesReal:interesReal, interesRealRaw:interesRealRaw,
+    divNeto:divAcum, divPiramidado:divPiramidado, divAcum:divAcum,
+    creditoISRCorp:creditoISRCorp, totalConsolidado:totalConsolidado,
+    ingresos:ingresos,
+    // Retenciones y pagos
+    isrEmpleador:isrEmpleador, isrRetenidoRF:isrRetenidoRF,
+    isrTotalRetenido:isrTotalRetenido,
+    // ISR RF
+    isrBrutoRF:isrBrutoRF, isrNetoRF:isrNetoRF,
+    isrRFpendiente:isrRFpendiente, saldoFavorRF:saldoFavorRF,
+    // ISR dividendos
+    isrDivTotal:isrDivTotal, isrAcumulable:isrAcumulable, creditoAcred:creditoAcred,
+    // Determinación
+    isrDeterminado:isrDeterminado, isrTotalDeterminado:isrTotalDeterminado,
+    baseConsolidada:baseConsolidada,
+    // Resultado ejercicio (una sola vez — fix #17)
+    saldoFavorTotal:saldoFavorTotal, saldoEjercicio:saldoEjercicio,
+    saldoFavorDed:saldoFavorDed, isrAPagar:isrAPagar,
+    isrPendienteTotal:isrPendienteTotal,
+    // Para simulador
+    isrCon:isrEmpleador, isrSin:r0.v,
+    bracket:r1.b, base:baseConsolidada,
+    // Deducciones y métricas
+    dedAp:dedAp, ahorro:ahorro, ef:ef, neto:neto,
+    imss:imss, limG:limG, umaA:umaA, deds:deds, hijos:hijos,
+    tasaMarg:tasaMarg,
+    // Refs a estructuras complejas (fix #16 — ya calculadas, no se pierden)
+    _retiro:retiro, _baldes:baldes
+  };
+
+  el('res').style.display='block';
+  // Ocultar banner stale y marcar como calculado (#6)
+  var sb=el('stale-banner'); if(sb)sb.style.display='none';
+  _calculado=true;
+  setTimeout(function(){el('res').scrollIntoView({behavior:'smooth',block:'start'});},50);
+
+  // Resumen en lenguaje natural (#12)
+  renderResumenNatural(G);
+
+  // KPIs
+  el('r-bruto').textContent=fmt(salPrestBruto+(rfRend||0)+(divAcum||0));
+  el('r-isr-ret').textContent=fmt(isrEmpleador);
+  el('r-neto').textContent=fmt(neto);
+  el('r-ef').textContent=fpc(ef);
+  el('r-mg').textContent=fpc(tasaMarg);
+
+  // ── PANEL DECLARACIÓN ANUAL ──
+  renderDecPanel(G);
+
+  // Score + bars
+  renderScore(ef,dedAp,limG,ahorro,ingresos);
+
+  var bd=[
+    {l:'ISR empleador',v:isrEmpleador,c:'var(--red)',p:isrEmpleador/Math.max(1,ingresosAcumSal+rfRend+divAcum)},
+    {l:'IMSS obrero', v:imss,c:'var(--yel)',p:imss/Math.max(1,ingresos)},
+    {l:'Deducciones', v:dedAp,c:'var(--ac)',p:dedAp/Math.max(1,ingresos)},
+    {l:'Neto liquid.',v:Math.max(0,neto),c:'var(--b2)',p:Math.max(0,neto)/Math.max(1,ingresosAcumSal+rfRend+divAcum)}
+  ];
+  el('bars').innerHTML=bd.map(function(x){
+    var w=Math.min(100,x.p*100).toFixed(1);
+    return '<div class="bar-r"><div class="bar-l">'+x.l+'</div><div class="bar-t"><div class="bar-f" style="background:'+x.c+';width:'+w+'%"></div></div><div class="bar-v">'+fmt(x.v)+'</div></div>';
+  }).join('');
+
+  // Tabla ISR
+  var tb=el('xtb');tb.innerHTML='';
+  ISR.forEach(function(b){
+    var tr=document.createElement('tr');
+    if(baseConsolidada>=b.li&&baseConsolidada<=b.ls)tr.classList.add('on');
+    tr.innerHTML='<td>'+fmt(b.li)+'</td><td>'+(b.ls===Infinity?'En adelante':fmt(b.ls))+'</td><td>'+fmt(b.cf)+'</td><td>'+b.p+'%</td>';
+    tb.appendChild(tr);
+  });
+
+  // Simulador, chart, plan, cal
+  el('sl-ppr').max=Math.round(limRetiro);
+  el('sl-afore').max=Math.round(limRetiro);
+  el('sl-ppr').step=500;
+  el('sl-afore').step=500;
+  // CPA slider: max = 152,000 − ya aportado en balde 4
+  var yaB4cap=G._baldes?G._baldes.b4.aplicado:0;
+  if(el('sl-cpa')){el('sl-cpa').max=Math.max(0,152000-yaB4cap);el('sl-cpa').step=1000;el('sl-cpa').value=0;}
+  simular();
+  el('pm').value=Math.round(neto/12*.2)||'';
+  drawChart();
+  renderInv(neto);
+  renderPlan();
+  renderCal();
+}
+
+/* ── PANEL DECLARACIÓN ANUAL — secciones colapsables ── */
+
+function toggleDecPanel(){
+  var body=el('dec-body');
+  var ico=el('dec-main-ico');
+  var sub=el('dec-panel-sub');
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  ico.classList.toggle('open',!open);
+  sub.textContent=open?'Haz clic para ver el desglose':'';
+}
+
+function toggleDecSection(id){
+  var body=el('ds-body-'+id);
+  var ico=el('ds-ico-'+id);
+  body.classList.toggle('open');
+  ico.classList.toggle('open');
+}
+
+function renderDecPanel(G){
+  var b=G._baldes; var ret=G._retiro;
+  var hayDed=Object.keys(G.deds).length>0;
+  var tm=G.tasaMarg;
+  var html='';
+
+  function section(id, dotColor, label, badgeVal, badgeClass, content, openByDefault){
+    var badge = badgeVal!==null ? '<span class="dec-section-badge" style="font-size:10px;font-weight:500;color:var(--mu)">'+badgeVal+'</span>' : '';
+    var openCls = openByDefault ? ' open' : '';
+    return '<div class="dec-section">'
+      +'<div class="dec-section-hdr" onclick="toggleDecSection(\''+id+'\')">'
+        +'<div class="dec-section-label"><span class="dec-sdot" style="background:'+dotColor+'"></span>'+label+'</div>'
+        +'<div class="dec-section-right">'+badge+'<span class="dec-section-ico'+openCls+'" id="ds-ico-'+id+'">▼</span></div>'
+      +'</div>'
+      +'<div class="dec-section-body'+openCls+'" id="ds-body-'+id+'">'+content+'</div>'
+      +'</div>';
+  }
+
+  function row(label, val, cls, indent){
+    cls=cls||'dim'; indent=indent||0;
+    var pl = indent===0?'24px':indent===1?'36px':'48px';
+    return '<div class="dec-row" style="padding-left:'+pl+'"><span class="lbl">'+label+'</span><span class="val '+cls+'">'+val+'</span></div>';
+  }
+
+  // ── S1: Nómina ──
+  var s1='';
+  s1+=row('Ingreso bruto (salario + prestaciones)', fmt(G.salPrestBruto), 'neu');
+  if(G.exentos>0){
+    s1+=row('— Ingresos exentos (fondo ahorro, vales, etc.)', '− '+fmt(G.exentos), 'dim');
+    s1+=row('= Ingresos acumulables por salarios', fmt(G.ingresosAcumSal), 'pos');
+  }
+  s1+=row('ISR retenido por empleador', fmt(G.isrEmpleador), 'dim');
+  html+=section('nomina','var(--ac)','Retenciones en nómina', fmt(G.isrEmpleador)+' retenido','dec-section-badge' ,s1, false);
+
+  // ── S2: Renta fija (solo si hay) ──
+  if(G.rfRend>0){
+    var s2='';
+    s2+=row('Interés nominal bruto', fmt(G.rfRend), 'neu');
+    s2+=row('— Ajuste inflacionario ('+fpc(G.inpcPct*100)+' × saldo)', '− '+fmt(G.ajusteInfl), 'dim');
+    if(G.interesRealRaw<0){
+      s2+=row('Interés real (negativo — inflación superó rendimiento)', '$0 acumulable', 'dim');
+    } else {
+      s2+=row('= Interés real acumulable', fmt(G.interesReal), 'pos');
+      s2+=row('ISR sobre interés real', fmt(G.isrBrutoRF), 'neu');
+      s2+=row('— ISR retenido por instituciones', '− '+fmt(G.isrRetenidoRF), 'dim');
+    }
+    var rfBadge, rfBadgeCls;
+    if(G.isrRFpendiente>0){
+      s2+=row('ISR neto pendiente', fmt(G.isrRFpendiente), 'neg');
+      rfBadge='+ '+fmt(G.isrRFpendiente)+' pendiente'; rfBadgeCls='neg';
+    } else {
+      s2+=row('Saldo a favor (retención excedió el ISR)', '+ '+fmt(G.saldoFavorRF), 'pos');
+      rfBadge=fmt(G.interesReal)+' acumulable'; rfBadgeCls='';
+    }
+    html+=section('rf','var(--b2)','Renta fija — CETES / SOFIPOs', rfBadge, rfBadgeCls, s2, false);
+  }
+
+  // ── S3: Dividendos (solo si hay) ──
+  if(G.divAcum>0){
+    var s3='';
+    s3+=row('Monto acumulable (ya piramidado por SAT)', fmt(G.divAcum), 'neu');
+    s3+=row('ISR sobre dividendo acumulado', fmt(G.isrAcumulable), 'neu');
+    s3+=row('— Crédito ISR corporativo acreditable', '− '+fmt(G.creditoISRCorp), 'dim');
+    var divBadge;
+    if(G.isrDivTotal>0){
+      s3+=row('ISR pendiente — dividendos', fmt(G.isrDivTotal), 'neg');
+      divBadge=fmt(G.isrDivTotal)+' pendiente';
+    } else {
+      s3+='<div class="dec-row" style="padding-left:24px"><span style="font-size:9px;color:var(--ac)">✓ Crédito corporativo cubre el ISR de dividendos</span></div>';
+      divBadge='cubierto';
+    }
+    html+=section('div','var(--b3)','Dividendos', divBadge, '', s3, false);
+  }
+
+  // ── S4: Deducciones ──
+  var s4='';
+  if(hayDed){
+    function baldeFila(num,color,lbl,ap,ahorro,items,note){
+      var tasaEf=ap>0?(ahorro/ap*100).toFixed(1)+'%':'';
+      var ahorroStr=ap>0?' <span style="font-size:9px;color:var(--ac)">↓ ISR '+fmt(ahorro)+' ('+tasaEf+')</span>':'';
+      s4+='<div class="dec-row indent0" style="background:var(--sur2)"><span class="lbl"><span style="color:'+color+';font-weight:600">Balde '+num+'</span> — '+lbl+ahorroStr+'</span><span class="val pos">'+fmt(ap)+'</span></div>';
+      if(items) items.forEach(function(it){ s4+=row(it.k+(it.tag||''), fmt(it.ap), 'pos', 1); });
+      if(note) s4+='<div class="dec-row" style="padding-left:36px"><span style="font-size:9px;color:var(--ac)">'+note+'</span></div>';
+    }
+
+    var b1items=Object.keys(G.deds).filter(function(k){return G.deds[k].bucket===1&&G.deds[k].ap>0;});
+    if(b1items.length){
+      baldeFila(1,'var(--red)','Art.151 Fr.I II IV VI VII — tope '+fmt(b.b1.tope),b.b1.aplicado,b.b1.ahorro,
+        b1items.map(function(k){var v=G.deds[k];return {k:k,ap:v.ap,tag:v.lim&&v.val>v.lim?' (tope '+fmt(v.lim)+')':''};}));
+      if(b.b1.excedente>0) s4+=row('⚠ Excedente no deducible', fmt(b.b1.excedente), 'neg', 1);
+    }
+    if(ret&&(ret.aforeVal>0||ret.pprVal>0)){
+      var b2items=[];
+      if(ret.aforeVal>0) b2items.push({k:'AFORE Voluntarias',ap:G.deds['AFORE Voluntarias (Fr.V)']?G.deds['AFORE Voluntarias (Fr.V)'].ap:0});
+      if(ret.pprVal>0) b2items.push({k:'Plan Personal de Retiro',ap:G.deds['Plan Personal de Retiro (Fr.V)']?G.deds['Plan Personal de Retiro (Fr.V)'].ap:0});
+      baldeFila(2,'var(--ac)','Art.151 Fr.V — Retiro. Límite '+fmt(b.b2.tope),b.b2.aplicado,b.b2.ahorro,b2items,'✅ NO compite con Balde 1 — límite independiente');
+      if(b.b2.excedente>0) s4+=row('⚠ Excedente — queda en tu patrimonio',fmt(b.b2.excedente),'neg',1);
+    }
+    if(b.b3&&b.b3.total>0) baldeFila(3,'var(--yel)','Art.151 Fr.III — Donativos. Tope 7% = '+fmt(b.b3.tope),b.b3.aplicado,b.b3.ahorro,null,'✅ Límite independiente');
+    if(b.b4&&b.b4.total>0) baldeFila(4,'var(--b2)','Art.185 — Estímulo autónomo. Tope $152,000',b.b4.aplicado,b.b4.ahorro,null,'✅ Fuera del Art.151');
+    if(b.b5&&b.b5.total>0) baldeFila(5,'#a78bfa','Decreto — Colegiaturas',b.b5.aplicado,b.b5.ahorro,null,'✅ No computa para el 15%');
+
+    s4+='<div class="dec-row indent0" style="background:rgba(61,255,192,.04);border-top:1px solid var(--bor2);">'
+      +'<span class="lbl" style="color:var(--ac)">Total deducible (5 baldes)</span>'
+      +'<span class="val pos" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">'
+      +'<span>'+fmt(G.dedAp)+'</span>'
+      +'<span style="font-size:9px;color:var(--yel)">↓ ISR ahorrado '+fmt(G.ahorro)+'</span>'
+      +'</span></div>';
+  } else {
+    s4+=row('Sin deducciones capturadas', '$0', 'dim');
+  }
+  html+=section('ded','var(--yel)','Deducciones y estímulos', hayDed?'↓ ISR '+fmt(G.ahorro):'$0', hayDed?'pos':'', s4, true);
+
+  // ── S5: Determinación — siempre abierto ──
+  var s5='';
+  s5+=row('Ingresos acumulables totales', fmt(G.ingresos), 'neu');
+  s5+=row('— Deducciones personales', '− '+fmt(G.dedAp), 'dim');
+  s5+=row('= Base gravable', fmt(G.baseConsolidada), 'pos');
+  s5+=row('ISR conforme a tarifa anual', fmt(G.isrDeterminado), 'neu');
+  s5+=row('— ISR retenido (empleador + intereses)', '− '+fmt(G.isrTotalRetenido), 'dim');
+  if(G.creditoISRCorp>0) s5+=row('— Crédito ISR corporativo acreditable', '− '+fmt(G.creditoISRCorp), 'dim');
+  s5+='<div class="dec-row total-row"><span class="lbl">'+(G.saldoFavorTotal>0?'Impuesto a favor — SAT te devuelve':'ISR a pagar en abril')+'</span>'
+    +'<span class="val '+(G.saldoFavorTotal>0?'pos':'neg')+'">'+(G.saldoFavorTotal>0?'+ ':'')+fmt(G.saldoFavorTotal>0?G.saldoFavorTotal:G.isrAPagar)+'</span></div>';
+  if(G.isrAPagar>0)
+    s5+='<div style="padding:10px 24px 14px;font-size:9px;color:var(--mu);">Ten disponible '+fmt(G.isrAPagar)+' para liquidar en abril.</div>';
+  else if(G.saldoFavorTotal>0)
+    s5+='<div style="padding:10px 24px 14px;font-size:9px;color:var(--mu);">Solicita tu devolución al presentar en abril. El SAT transfiere en ~40 días hábiles.</div>';
+  html+=section('det','var(--ac)','Determinación del impuesto', null, '', s5, true);
+
+  el('dec-body').innerHTML=html;
+
+  // Header del panel
+  var rh=el('r-resultado-header');
+  if(G.saldoFavorTotal>0){
+    rh.textContent='↑ '+fmt(G.saldoFavorTotal)+' a favor';
+    rh.style.color='var(--ac)';
+  } else if(G.isrAPagar>0){
+    rh.textContent='↓ '+fmt(G.isrAPagar)+' a pagar';
+    rh.style.color='var(--red)';
+  } else {
+    rh.textContent='En equilibrio';
+    rh.style.color='var(--mu)';
+  }
+  el('dec-panel-sub').textContent='Haz clic para ver el desglose';
+}
+
+
+// opts: {dedAp, ahorro, ef, simulated} — si vienen del simulador, se pasan como overrides
+function renderScore(ef,dedAp,limG,ahorro,ingresos,opts){
+  opts=opts||{};
+  var simulated=!!opts.simulated;
+  var uso=dedAp/limG;
+  var efSim=opts.ef!==undefined?opts.ef:ef;
+  var usoSim=opts.uso!==undefined?opts.uso:uso;
+  var ahorroSim=opts.ahorro!==undefined?opts.ahorro:ahorro;
+
+  var tieneRetiro=(isOn('afore')||isOn('ppr'))||opts.tieneRetiro;
+
+  var items=[
+    {
+      l:'Carga fiscal',
+      v:fpc(efSim),
+      vBase:simulated?fpc(ef):null,
+      pts:efSim<10?25:efSim<15?20:efSim<20?14:efSim<25?8:3,
+      c:efSim<15?'var(--ac)':efSim<22?'var(--yel)':'var(--red)'
+    },
+    {
+      l:'Uso deducciones',
+      v:fpc(usoSim*100),
+      vBase:simulated?fpc(uso*100):null,
+      pts:usoSim>.8?25:usoSim>.5?18:usoSim>.2?10:3,
+      c:usoSim>.7?'var(--ac)':usoSim>.4?'var(--yel)':'var(--red)'
+    },
+    {
+      l:'Ahorro generado',
+      v:fmt(ahorroSim),
+      vBase:simulated?fmt(ahorro):null,
+      pts:ahorroSim/ingresos>.05?25:ahorroSim/ingresos>.02?18:ahorroSim>0?10:2,
+      c:ahorroSim/ingresos>.03?'var(--ac)':ahorroSim>0?'var(--yel)':'var(--red)'
+    },
+    {
+      l:'Plan de retiro',
+      v:tieneRetiro?'Activo':'Sin activar',
+      pts:tieneRetiro?25:5,
+      c:tieneRetiro?'var(--ac)':'var(--red)'
+    }
+  ];
+
+  var score=items.reduce(function(a,i){return a+i.pts;},0);
+  var circ=238.76,arc=el('sarc');
+
+  // Animación suave del arco — sin reset cuando viene del simulador
+  if(!simulated){arc.style.strokeDashoffset=circ;}
+  arc.style.stroke=score>=70?'var(--ac)':score>=45?'var(--yel)':'var(--red)';
+  arc.style.transition=simulated?'stroke-dashoffset .35s ease,stroke .25s ease':'stroke-dashoffset 1s ease';
+  setTimeout(function(){arc.style.strokeDashoffset=circ-(score/100)*circ;},simulated?0:80);
+
+  var sn=el('snum');
+  sn.textContent=score;
+  sn.style.color=score>=70?'var(--ac)':score>=45?'var(--yel)':'var(--red)';
+
+  // Flash del número si viene del simulador
+  if(simulated){
+    sn.style.transition='transform .15s ease,opacity .15s ease';
+    sn.style.transform='scale(1.15)';sn.style.opacity='.7';
+    setTimeout(function(){sn.style.transform='scale(1)';sn.style.opacity='1';},150);
+  }
+
+  el('sdet').innerHTML=items.map(function(it){
+    var delta=it.vBase?'<span style="color:var(--mu);font-size:8px;margin-left:4px;">era '+it.vBase+'</span>':'';
+    return '<div class="sr"><div class="sdot" style="background:'+it.c+'"></div>'
+      +'<span style="color:var(--mu);flex:1">'+it.l+'</span>'
+      +'<span style="color:'+it.c+'">'+it.v+delta+'</span></div>';
+  }).join('');
+
+  var badge=simulated?'<span style="font-size:8px;letter-spacing:1px;text-transform:uppercase;background:rgba(61,255,192,.1);color:var(--ac);border:1px solid rgba(61,255,192,.2);padding:1px 6px;border-radius:2px;margin-left:6px;">simulado</span>':'';
+  el('smsg').innerHTML=(score>=80?'🟢 Excelente optimización fiscal. Estás aprovechando bien tus herramientas.':score>=60?'🟡 Buena base. Hay margen de mejora en deducciones y plan de retiro.':score>=40?'🟠 Situación mejorable. Usa el simulador para ver cuánto puedes ahorrar.':'🔴 Alta carga fiscal. Activa PPR, AFORE y deducciones para reducir tu ISR.')+badge;
+}
+
+function simular(moved){
+  if(!G.ingresos)return;
+
+  var limRet=G._retiro?G._retiro.limRetiro:Math.min(G.ingresoBrutoTotal*.1,5*G.umaA);
+  var yaAportado=(isOn('ppr')?gv('v-ppr'):0)+(isOn('afore')?gv('v-afore'):0);
+  var margenDisp=Math.max(0,limRet-yaAportado);
+
+  // Mostrar tope conjunto en UI
+  if(el('sim-lim-retiro')) el('sim-lim-retiro').textContent=fmt(margenDisp)+' disponible';
+
+  var slPPR=el('sl-ppr'),slAFORE=el('sl-afore');
+
+  // Leer el valor del slider que se movio primero,
+  // luego calcular el max del otro y truncar si es necesario
+  if(moved==='ppr'){
+    var pv=parseFloat(slPPR.value)||0;
+    if(pv>margenDisp){pv=margenDisp;slPPR.value=pv;}
+    var av=parseFloat(slAFORE.value)||0;
+    var maxAFORE=Math.max(0,margenDisp-pv);
+    slAFORE.max=maxAFORE;
+    if(av>maxAFORE){av=maxAFORE;slAFORE.value=av;}
+  } else if(moved==='afore'){
+    var av=parseFloat(slAFORE.value)||0;
+    if(av>margenDisp){av=margenDisp;slAFORE.value=av;}
+    var pv=parseFloat(slPPR.value)||0;
+    var maxPPR=Math.max(0,margenDisp-av);
+    slPPR.max=maxPPR;
+    if(pv>maxPPR){pv=maxPPR;slPPR.value=pv;}
+  } else {
+    var pv=parseFloat(slPPR.value)||0;
+    var av=parseFloat(slAFORE.value)||0;
+  }
+
+  // Barra de progreso tope conjunto retiro
+  var usoPct=margenDisp>0?Math.min(100,((pv+av)/margenDisp)*100):0;
+  if(el('sim-retiro-bar')) el('sim-retiro-bar').style.width=usoPct+'%';
+
+  // Flags visuales con valores ya corregidos
+  var maxPPR=Math.max(0,margenDisp-av);
+  var maxAFORE=Math.max(0,margenDisp-pv);
+
+  var mv=parseFloat(el('sl-med').value)||0;
+  var cpav=parseFloat(el('sl-cpa')?el('sl-cpa').value:0)||0;
+  // Tope CPA: $152,000 − lo ya aportado en balde 4
+  var yaB4=G._baldes?G._baldes.b4.aplicado:0;
+  var maxCPA=Math.max(0,152000-yaB4);
+  if(cpav>maxCPA){cpav=maxCPA;if(el('sl-cpa'))el('sl-cpa').value=cpav;}
+  if(el('sl-cpa'))el('sl-cpa').max=maxCPA;
+
+  // Mostrar valor + aviso de bloqueado junto a cada slider
+  var pprBloq=maxPPR===0&&av>0;
+  var aforeBloq=maxAFORE===0&&pv>0;
+  var pprParcial=maxPPR>0&&maxPPR<margenDisp;
+  var aforeParcial=maxAFORE>0&&maxAFORE<margenDisp;
+  var cpaBloq=maxCPA===0;
+
+  function tagBloq(bloq,parcial,restante){
+    if(bloq) return ' <span style="font-size:8px;letter-spacing:1px;background:rgba(255,69,96,.1);color:var(--red);border:1px solid rgba(255,69,96,.2);padding:1px 6px;border-radius:2px;">BLOQUEADO</span>';
+    if(parcial) return ' <span style="font-size:8px;letter-spacing:1px;background:rgba(255,201,77,.08);color:var(--yel);border:1px solid rgba(255,201,77,.2);padding:1px 6px;border-radius:2px;">máx '+fmt(restante)+'</span>';
+    return '';
+  }
+  el('sv-ppr').innerHTML=fmt(pv)+tagBloq(pprBloq,pprParcial,maxPPR);
+  el('sv-afore').innerHTML=fmt(av)+tagBloq(aforeBloq,aforeParcial,maxAFORE);
+  el('sv-med').textContent=fmt(mv);
+  if(el('sv-cpa')) el('sv-cpa').innerHTML=fmt(cpav)+tagBloq(cpaBloq,false,0);
+
+  // Estilo visual del slider bloqueado
+  slPPR.style.opacity=pprBloq?'0.35':'1';
+  slAFORE.style.opacity=aforeBloq?'0.35':'1';
+  slPPR.style.cursor=pprBloq?'not-allowed':'pointer';
+  slAFORE.style.cursor=aforeBloq?'not-allowed':'pointer';
+  if(el('sl-cpa')){el('sl-cpa').style.opacity=cpaBloq?'0.35':'1';el('sl-cpa').style.cursor=cpaBloq?'not-allowed':'pointer';}
+
+  // Recalcular dedAp simulado respetando topes de cada balde
+  var simB1=Math.min((G._baldes?G._baldes.b1.total:0)+mv, G.limG);
+  var simB2=Math.min((G._retiro?G._retiro.totalRetiro:0)+pv+av, limRet);
+  var simB3=G._baldes?G._baldes.b3.aplicado:0;
+  var simB4=Math.min((G._baldes?G._baldes.b4.aplicado:0)+cpav, 152000);
+  var simB5=G._baldes?G._baldes.b5.aplicado:0;
+  var nd=simB1+simB2+simB3+simB4+simB5;
+  var nb=Math.max(0,G.ingresos-nd);
+  var ni=calcISR(nb).v;
+  // Ahorro en ISR real = ISR determinado actual − ISR simulado
+  var ex=Math.max(0,G.isrDeterminado?G.isrDeterminado-ni:G.isrCon-ni);
+  // Tasa marginal del escenario simulado
+  var tmSim=calcISR(nb).b.p;
+
+  el('si-act').textContent=fmt(G.isrDeterminado||G.isrEmpleador);
+  el('si-new').textContent=fmt(ni);
+  el('si-sav').innerHTML=fmt(ex)+'<span style="font-size:9px;color:var(--mu);margin-left:4px;">(tasa marg. '+tmSim+'%)</span>';
+
+  var usadoRetiro=yaAportado+pv+av;
+  var margenRestante=Math.max(0,limRet-usadoRetiro);
+  var topado=margenRestante===0&&(pv>0||av>0);
+  var rows=[
+    {l:'Margen PPR + AFORE disponible',v:margenRestante,warn:topado},
+    {l:'Margen CPA disponible',v:Math.max(0,maxCPA-cpav),warn:cpaBloq},
+    {l:'Margen global restante',v:Math.max(0,G.limG-nd)}
+  ];
+  el('si-un').innerHTML=rows.map(function(x){
+    var col=x.warn?'var(--red)':x.v>0?'var(--b3)':'var(--mu)';
+    var tag=x.warn?' <span style="font-size:8px;background:rgba(255,69,96,.1);color:var(--red);border:1px solid rgba(255,69,96,.2);padding:1px 5px;border-radius:2px;letter-spacing:1px;">TOPE ALCANZADO</span>':'';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--bor);font-size:9px;"><span style="color:var(--mu)">'+x.l+tag+'</span><span style="color:'+col+'">'+fmt(x.v)+'</span></div>';
+  }).join('')
+  +(topado?'<div style="margin-top:6px;padding:7px 10px;background:rgba(255,69,96,.05);border:1px solid rgba(255,69,96,.2);border-radius:3px;font-size:9px;color:var(--red);line-height:1.7;">El tope legal PPR+AFORE para tu nivel de ingreso es <strong>'+fmt(limRet)+'</strong>. Ya consumiste el 100% del margen — cualquier aportación adicional no reduce tu ISR.</div>':'');
+
+  // ── Score reactivo ──
+  var efSim=Math.max(0,ni/Math.max(1,G.ingresos)*100);
+  var usoSim=nd/G.limG;
+  var ahorroSim=Math.max(0,G.isrCon-ni);
+  var tieneRetiroSim=(isOn('afore')||isOn('ppr'))||(pv>0)||(av>0);
+
+  renderScore(G.ef,G.dedAp,G.limG,G.ahorro,G.ingresos,{
+    simulated: pv>0||av>0||mv>0||cpav>0,
+    ef: efSim,
+    uso: usoSim,
+    ahorro: ahorroSim,
+    tieneRetiro: tieneRetiroSim
+  });
+}
+
+function setP(n,btn){
+  plazo=n;
+  document.querySelectorAll('.pb').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+  drawChart();
+}
+
+function compound(m,r,y,s0){
+  // s0 = saldo inicial (capital ya invertido)
+  var rm=r/12,s=s0||0,out=[s];
+  for(var i=1;i<=y*12;i++){s=(s+m)*(1+rm);if(i%12===0)out.push(s);}
+  return out;
+}
+
+function drawChart(){
+  var monthly=parseFloat(el('pm').value)||0;
+  var s0rf =parseFloat(el('pi-rf').value)||0;
+  var s0ppr=parseFloat(el('pi-ppr').value)||0;
+  var s0etf=parseFloat(el('pi-etf').value)||0;
+  var rfRate=(parseFloat(el('pi-rf-rate').value)||7)/100;
+  var rfRateDisp=Math.round((parseFloat(el('pi-rf-rate').value)||7)*10)/10;
+  if(!monthly&&!s0rf&&!s0ppr&&!s0etf)return;
+
+  // Update RF rate label
+  if(el('rf-rate-lbl'))el('rf-rate-lbl').textContent=rfRateDisp+'%';
+
+  // Each instrument gets its own monthly contribution (user splits evenly)
+  var instruments=[
+    {id:'ppr',canvasId:'pc-ppr',s0:s0ppr,rate:.09,   color:'#4d9fff', monthly:monthly},
+    {id:'etf',canvasId:'pc-etf',s0:s0etf,rate:.11,   color:'#ff7a45', monthly:0},
+    {id:'rf', canvasId:'pc-rf', s0:s0rf, rate:rfRate, color:'#3dffc0', monthly:0}
+  ];
+
+  instruments.forEach(function(inst){
+    var data=compound(inst.monthly,inst.rate,plazo,inst.s0);
+    var finalVal=data[data.length-1];
+    var cap=inst.s0+inst.monthly*plazo*12;
+    var gain=finalVal-cap;
+
+    // Update labels
+    if(el('lbl-yr-'+inst.id))el('lbl-yr-'+inst.id).textContent=plazo;
+    if(el('pv-'+inst.id))el('pv-'+inst.id).textContent=fmt(finalVal);
+    if(el('gain-'+inst.id))el('gain-'+inst.id).textContent=gain>0?'+'+fmt(gain)+' ganancia':'';
+
+    // Draw canvas
+    var canvas=el(inst.canvasId);
+    if(!canvas)return;
+    var dpr=window.devicePixelRatio||1;
+    var W=canvas.parentElement.getBoundingClientRect().width||200,H=120;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    var ctx=canvas.getContext('2d');
+    ctx.scale(dpr,dpr);
+
+    var pd={t:10,r:8,b:18,l:44};
+    var cw=W-pd.l-pd.r,ch=H-pd.t-pd.b;
+    var maxV=Math.max(finalVal,cap)*1.02;
+
+    function xp(i){return pd.l+(i/plazo)*cw;}
+    function yp(v){return pd.t+ch-(v/maxV)*ch;}
+
+    ctx.clearRect(0,0,W,H);
+
+    // Grid lines
+    for(var gi=0;gi<=3;gi++){
+      var gy=pd.t+(ch/3)*gi;
+      ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pd.l,gy);ctx.lineTo(pd.l+cw,gy);ctx.stroke();
+      var gval=maxV-(maxV/3)*gi;
+      ctx.fillStyle='#4a5470';ctx.font='7px monospace';ctx.textAlign='right';
+      ctx.fillText('$'+(gval>=1e6?(gval/1e6).toFixed(1)+'M':(gval/1e3).toFixed(0)+'K'),pd.l-3,gy+3);
+    }
+
+    // Capital aportado (dashed)
+    var capData=[];
+    for(var i=0;i<=plazo;i++)capData.push(inst.s0+inst.monthly*i*12);
+    ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+    ctx.beginPath();
+    capData.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+    ctx.stroke();ctx.setLineDash([]);
+
+    // Área bajo la curva
+    var hex=inst.color.replace('#','');
+    var r2=parseInt(hex.slice(0,2),16),g2=parseInt(hex.slice(2,4),16),b2=parseInt(hex.slice(4,6),16);
+    var grad=ctx.createLinearGradient(0,pd.t,0,pd.t+ch);
+    grad.addColorStop(0,'rgba('+r2+','+g2+','+b2+',.15)');
+    grad.addColorStop(1,'rgba('+r2+','+g2+','+b2+',0)');
+    ctx.beginPath();
+    data.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+    ctx.lineTo(xp(plazo),pd.t+ch);ctx.lineTo(xp(0),pd.t+ch);ctx.closePath();
+    ctx.fillStyle=grad;ctx.fill();
+
+    // Línea principal
+    ctx.strokeStyle=inst.color;ctx.lineWidth=2;ctx.lineJoin='round';
+    ctx.beginPath();
+    data.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+    ctx.stroke();
+
+    // Dot final
+    ctx.beginPath();ctx.arc(xp(plazo),yp(finalVal),3.5,0,Math.PI*2);
+    ctx.fillStyle=inst.color;ctx.fill();
+    ctx.strokeStyle='var(--sur2)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(xp(plazo),yp(finalVal),3.5,0,Math.PI*2);ctx.stroke();
+
+    // Eje X años
+    ctx.fillStyle='#4a5470';ctx.font='7px monospace';ctx.textAlign='center';
+    var step=Math.ceil(plazo/4);
+    for(var xi=0;xi<=plazo;xi+=step)ctx.fillText('A'+xi,xp(xi),H-3);
+  });
+
+  // ── Gráfica total portafolio — áreas apiladas + línea total ──
+  var canvas=el('pc-total');
+  if(canvas){
+    // Calcular series por año
+    var seriesPPR=compound(instruments[0].monthly,instruments[0].rate,plazo,instruments[0].s0);
+    var seriesETF=compound(instruments[1].monthly,instruments[1].rate,plazo,instruments[1].s0);
+    var seriesRF =compound(instruments[2].monthly,instruments[2].rate,plazo,instruments[2].s0);
+    var seriesTotal=seriesPPR.map(function(v,i){return v+seriesETF[i]+seriesRF[i];});
+    var totalFinalV=seriesTotal[plazo];
+    var totalCapV=(s0ppr+s0etf+s0rf)+monthly*plazo*12;
+
+    var dpr=window.devicePixelRatio||1;
+    var W=canvas.parentElement.getBoundingClientRect().width||400,H=160;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    var ctx=canvas.getContext('2d');
+    ctx.scale(dpr,dpr);
+
+    var pd={t:12,r:8,b:20,l:52};
+    var cw=W-pd.l-pd.r,ch=H-pd.t-pd.b;
+    var maxV=totalFinalV*1.05;
+
+    function xp(i){return pd.l+(i/plazo)*cw;}
+    function yp(v){return pd.t+ch-(v/maxV)*ch;}
+
+    ctx.clearRect(0,0,W,H);
+
+    // Grid
+    for(var gi=0;gi<=4;gi++){
+      var gy=pd.t+(ch/4)*gi;
+      ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pd.l,gy);ctx.lineTo(pd.l+cw,gy);ctx.stroke();
+      var gval=maxV-(maxV/4)*gi;
+      ctx.fillStyle='#4a5470';ctx.font='7px monospace';ctx.textAlign='right';
+      ctx.fillText('$'+(gval>=1e6?(gval/1e6).toFixed(1)+'M':(gval/1e3).toFixed(0)+'K'),pd.l-3,gy+3);
+    }
+
+    // Función para dibujar área apilada
+    function drawStackedArea(topSeries, bottomSeries, color){
+      var hex=color.replace('#','');
+      var rr=parseInt(hex.slice(0,2),16)||61,gg=parseInt(hex.slice(2,4),16)||200,bb2=parseInt(hex.slice(4,6),16)||192;
+      ctx.beginPath();
+      topSeries.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+      for(var i=plazo;i>=0;i--)ctx.lineTo(xp(i),yp(bottomSeries[i]));
+      ctx.closePath();
+      ctx.fillStyle='rgba('+rr+','+gg+','+bb2+',.18)';
+      ctx.fill();
+    }
+
+    // Bases apiladas
+    var base0=seriesPPR.map(function(){return 0;});
+    var stackRF=seriesRF; // RF abajo
+    var stackRF_PPR=seriesRF.map(function(v,i){return v+seriesPPR[i];}); // RF+PPR
+    var stackAll=seriesTotal; // todo
+
+    drawStackedArea(stackRF, base0, '#3dffc0');          // RF — verde
+    drawStackedArea(stackRF_PPR, stackRF, '#4d9fff');    // PPR — azul
+    drawStackedArea(stackAll, stackRF_PPR, '#ff7a45');   // ETF — naranja
+
+    // Líneas de cada instrumento (suaves, finas)
+    function drawLine(series, color, width){
+      ctx.strokeStyle=color;ctx.lineWidth=width||1;ctx.setLineDash([]);ctx.lineJoin='round';
+      ctx.beginPath();
+      series.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+      ctx.stroke();
+    }
+    drawLine(stackRF,     '#3dffc0', 1.5);
+    drawLine(stackRF_PPR, '#4d9fff', 1.5);
+    drawLine(stackAll,    '#ff7a45', 1.5);
+
+    // Línea total gruesa encima
+    ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=2.5;ctx.lineJoin='round';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    seriesTotal.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+    ctx.stroke();
+
+    // Capital aportado (dashed)
+    var capLine=[];for(var i=0;i<=plazo;i++)capLine.push(totalCapV*(i/plazo));
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.setLineDash([3,5]);
+    ctx.beginPath();
+    capLine.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+    ctx.stroke();ctx.setLineDash([]);
+
+    // Línea valor real (ajustada por inflación) — #10
+    var inflAnual=(parseFloat((el('inpc')&&el('inpc').value)||4.20)||4.20)/100;
+    var seriesReal=seriesTotal.map(function(v,i){return v/Math.pow(1+inflAnual,i);});
+    var totalRealV=seriesReal[plazo];
+    ctx.strokeStyle='rgba(255,201,77,.55)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.lineJoin='round';
+    ctx.beginPath();
+    seriesReal.forEach(function(v,i){i===0?ctx.moveTo(xp(i),yp(v)):ctx.lineTo(xp(i),yp(v));});
+    ctx.stroke();ctx.setLineDash([]);
+
+    // Dot final
+    ctx.beginPath();ctx.arc(xp(plazo),yp(totalFinalV),4,0,Math.PI*2);
+    ctx.fillStyle='#fff';ctx.fill();
+
+    // Eje X
+    ctx.fillStyle='#4a5470';ctx.font='7px monospace';ctx.textAlign='center';
+    var step=Math.ceil(plazo/5);
+    for(var xi=0;xi<=plazo;xi+=step)ctx.fillText('A'+xi,xp(xi),H-3);
+
+    // Labels
+    if(el('lbl-yr-total'))el('lbl-yr-total').textContent=plazo;
+    if(el('pv-total'))el('pv-total').textContent=fmt(totalFinalV);
+    var gainTotal=totalFinalV-totalCapV;
+    if(el('gain-total'))el('gain-total').textContent=gainTotal>0?'+ '+fmt(gainTotal)+' ganancia total':'';
+    // Valor real label (#10)
+    if(el('pv-total-real'))el('pv-total-real').textContent=fmt(totalRealV)+' en pesos de hoy';
+  }
+
+  // ── RF ISR neto note (#14) ──
+  var rfRateVal=(parseFloat(el('pi-rf-rate').value)||7)/100;
+  var rfS0=parseFloat(el('pi-rf').value)||0;
+  var rfTasaMarg=(parseFloat(el('rf-isr-tasa')&&el('rf-isr-tasa').value)||30)/100;
+  var inflVal=(parseFloat((el('inpc')&&el('inpc').value)||4.20)||4.20)/100;
+  var rfNote=el('rf-isr-note');
+  var rfNoteVal=el('rf-isr-note-val');
+  var rfNoteInfl=el('rf-isr-infl');
+  if(rfNote){
+    if(rfS0>0||monthly>0){
+      rfNote.style.display='block';
+      var rendNom=rfRateVal; // rendimiento nominal bruto
+      var interesRealPct=Math.max(0,rendNom-inflVal); // interés real aproximado
+      // ISR sobre interés real ≈ tasa marginal × interés real
+      var isrSobreReal=interesRealPct*rfTasaMarg;
+      // Retención 0.90% sobre capital anual (tasa ISR RF 2026)
+      var retencionPct=0.009;
+      var rendNetoReal=rendNom-inflVal-isrSobreReal-retencionPct;
+      if(rfNoteInfl)rfNoteInfl.textContent=fpc(inflVal*100).replace('%','').replace(/\.00$/,'');
+      rfNoteVal.innerHTML='Nominal: <strong style="color:var(--tx)">'+fpc(rendNom*100)+'</strong>'
+        +' · Real: <strong style="color:var(--tx)">'+fpc(interesRealPct*100)+'</strong>'
+        +' · <span style="color:var(--ac)">Neto post-ISR: <strong>'+fpc(Math.max(0,rendNetoReal)*100)+'</strong></span>'
+        +(rendNetoReal<0?'<br><span style="color:var(--red);font-size:8px;">⚠ Inflación + ISR superan el rendimiento nominal</span>':'');
+    } else {
+      rfNote.style.display='none';
+    }
+  }
+
+  // Total consolidado en psums
+  var totalFinal=instruments.reduce(function(acc,inst){
+    return acc+compound(inst.monthly,inst.rate,plazo,inst.s0)[plazo];
+  },0);
+  var totalCap=(s0rf+s0ppr+s0etf)+monthly*plazo*12; // aportación mensual solo a PPR
+  var totalGain=totalFinal-totalCap;
+  el('psums').innerHTML=
+    '<div style="background:rgba(255,255,255,.02);border:1px solid var(--bor);border-radius:5px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">'+
+    '<div><div style="font-size:8px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;">Total portafolio proyectado A'+plazo+'</div>'+
+    '<div style="font-family:Fraunces,serif;font-size:1.3rem;font-weight:700;color:var(--fg);">'+fmt(totalFinal)+'</div></div>'+
+    '<div style="text-align:right;"><div style="font-size:8px;color:var(--mu);margin-bottom:3px;">Capital aportado</div>'+
+    '<div style="font-size:11px;color:var(--mu);">'+fmt(totalCap)+'</div>'+
+    '<div style="font-size:10px;color:var(--ac);margin-top:2px;">+'+fmt(totalGain)+' ganancia total</div></div>'+
+    '</div>';
+}
+
+function renderInv(neto){
+  var men=neto/12*.2;
+  var invs=[
+    {n:'CETES 28 días',tg:'GUBERNAMENTAL',tc:'',t:6.79,isr:true,d:'Sin riesgo de crédito. Reinversión automática. Tasa primera semana marzo 2026.'},
+    {n:'CETES 364 días',tg:'GUBERNAMENTAL · 1 AÑO',tc:'',t:7.21,isr:true,d:'Tasa bloqueada al invertir. Protege ante futuros recortes de Banxico.'},
+    {n:'SOFIPO — Nu, Flink',tg:'FINTECH',tc:'bl',t:11.5,isr:true,d:'Rendimiento diario. Reguladas CNBV. Protección PROSOFIPO ~$200K MXN.'},
+    {n:'AFORE Voluntaria',tg:'LIBERTAD · DEDUCIBLE',tc:'',t:8.5,isr:false,d:'Deducible hasta límite conjunto con PPR. Rendimiento exento hasta retiro.'},
+    {n:'PPR',tg:'LIBERTAD · DEDUCIBLE',tc:'',t:9.0,isr:false,d:'Ded. conjunta con AFORE: min(10% ingreso, 5 UMAs ≈ $201K). ISR solo sobre rendimiento real al rescatar.'},
+    {n:'ETFs / Renta Variable',tg:'RENTA VARIABLE',tc:'or',t:10.5,isr:false,d:'Plusvalías exentas hasta $700K/año (Art.129). Rendimiento histórico 10–12%.'}
+  ];
+  el('invg').innerHTML=invs.map(function(inv){
+    var ca=men*12,rend=ca*inv.t/100,ir=inv.isr?ca*.009:0,nr=rend-ir;
+    return '<div class="ic"><div class="itg '+inv.tc+'">'+inv.tg+'</div><div class="in">'+inv.n+'</div><div class="ir">'+inv.t+'%</div><div class="id">'+inv.d+'</div>'
+      +'<div style="margin-top:6px">'
+      +'<div class="irow"><span>Inv. mensual sugerida</span><span>'+fmt(men)+'</span></div>'
+      +'<div class="irow"><span>Rendimiento bruto/año</span><span>'+fmt(rend)+'</span></div>'
+      +(inv.isr?'<div class="irow"><span>ISR retenido 0.90%</span><span>−'+fmt(ir)+'</span></div>':'')
+      +'<div class="irow hl"><span>Rendimiento neto/año</span><span>'+fmt(nr)+'</span></div>'
+      +'</div></div>';
+  }).join('');
+}
+
+function renderPlan(){
+  var nm=G.neto/12;
+  var lp=G._retiro?G._retiro.limRetiro:Math.min(G.ingresoBrutoTotal*.1,5*G.umaA);
+  var pasos=[
+    {n:'01',c:'var(--ac)',t:'Maximiza tu PPR antes del 31 de diciembre',d:'Puedes deducir hasta '+fmt(lp)+' en PPR+AFORE, ahorrando hasta '+fmt(lp*G.bracket.p/100)+' de ISR.'},
+    {n:'02',c:'var(--b2)',t:'Presenta tu Declaración Anual en abril',d:(G.saldoFavorTotal>0?'Saldo a favor: '+fmt(G.saldoFavorTotal)+'. Solicita devolución al presentar.':'ISR a pagar: '+fmt(G.isrAPagar)+'. Ten el monto disponible en abril.')}
+                                                                                                  ,
+    {n:'03',c:'var(--b3)',t:'Aplica la regla del 20% para inversión',d:'De tu neto mensual de '+fmt(nm)+', invierte '+fmt(nm*.2)+'/mes. En 10 años al 9% acumularías ~'+fmt(nm*.2*12*((Math.pow(1.09,10)-1)/.09))+'.'}
+  ];
+  if((G.isrEmpleador+G.isrPendienteTotal)>60000){
+    pasos.push({n:'04',c:'var(--yel)',t:'Abre una SOFIPO para tu fondo de emergencia',d:'Con tu nivel de ingresos, 3 meses en Nu/Flink al 11.5% supera al banco. Líquido, seguro, rendimiento diario.'});
+  }
+  if(G.limG-G.dedAp>10000){
+    pasos.push({n:String(pasos.length+1).padStart(2,'0'),c:'var(--ac)',t:fmt(G.limG-G.dedAp)+' de límite sin usar',d:'Guarda CFDIs de gastos médicos, seguros y colegiaturas. Si no los reportas, ese dinero queda en el SAT.'});
+  }
+  el('plan').innerHTML=pasos.map(function(p){
+    return '<div class="plan-item" style="border-left-color:'+p.c+'"><div class="plan-n" style="color:'+p.c+'">'+p.n+'</div><div><div class="plan-t">'+p.t+'</div><div class="plan-d">'+p.d+'</div></div></div>';
+  }).join('');
+}
+
+function renderCal(){
+  var m=new Date().getMonth();
+  var evs=[
+    {mes:'Enero',t:'Ajuste anual ISR',d:'Tu empleador hace el cálculo anual y puede retenerte más o devolverte en nómina.',u:m===0?'urg':'lejos'},
+    {mes:'Feb–Mar',t:'Reúne tus CFDIs',d:'Descarga comprobantes del año anterior desde el portal SAT.',u:m<=2?'pronto':'lejos'},
+    {mes:'Abril',t:'Declaración Anual',d:'Fecha límite personas físicas asalariadas. Aquí recuperas tu saldo a favor.',u:m===3?'urg':m<3?'pronto':'lejos'},
+    {mes:'May–Jun',t:'Aportaciones retiro',d:'Ideal para iniciar o aumentar AFORE/PPR y asegurar deducción del año.',u:(m>=4&&m<=5)?'pronto':'nor'},
+    {mes:'Julio',t:'Revisión semestral',d:'Verifica que tus retenciones vayan en línea con tu ISR anual estimado.',u:m===6?'pronto':'nor'},
+    {mes:'Sep–Oct',t:'Maximiza deducciones',d:'Último trimestre: realiza gastos deducibles planeados y obtén CFDIs.',u:(m>=8&&m<=9)?'pronto':'nor'},
+    {mes:'Noviembre',t:'Cierre PPR/AFORE',d:'Completa tus aportaciones antes del 31 de diciembre.',u:m>=10?'pronto':'nor'},
+    {mes:'31 Dic',t:'⚠ Límite deducciones',d:'Fecha límite para que aportaciones y gastos sean deducibles del ejercicio.',u:m===11?'urg':'lejos'}
+  ];
+  var labs={urg:'🔴 Este mes',pronto:'🟡 Próximo',nor:'🔵 En el año',lejos:'⚪ Pendiente'};
+  el('cal').innerHTML=evs.map(function(e){
+    return '<div class="ci '+e.u+'"><div class="cm">'+e.mes+'</div><div class="ct2">'+e.t+'</div><div class="cd">'+e.d+'</div><div class="cbg">'+labs[e.u]+'</div></div>';
+  }).join('');
+}
+
+window.addEventListener('resize',function(){if(G.neto)drawChart();});
+
+// ── PWA: Service Worker ──
+if('serviceWorker' in navigator){
+  // Inyectar SW como blob para funcionar desde archivo local o cualquier servidor
+  var swCode=[
+    "const CACHE='fiscalmx-v1';",
+    "const ASSETS=['/'];",
+    "self.addEventListener('install',e=>{",
+    "  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));",
+    "});",
+    "self.addEventListener('activate',e=>{",
+    "  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));",
+    "});",
+    "self.addEventListener('fetch',e=>{",
+    "  if(e.request.method!=='GET')return;",
+    "  e.respondWith(fetch(e.request).then(r=>{",
+    "    if(!r||r.status!==200||r.type==='opaque')return r;",
+    "    var rc=r.clone();",
+    "    caches.open(CACHE).then(c=>c.put(e.request,rc));",
+    "    return r;",
+    "  }).catch(()=>caches.match(e.request)));",
+    "});"
+  ].join('\n');
+  var blob=new Blob([swCode],{type:'application/javascript'});
+  var swURL=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swURL,{scope:'./'})
+    .then(function(r){console.log('[FiscalMX] SW registrado',r.scope);})
+    .catch(function(e){console.warn('[FiscalMX] SW falló (normal en file://)',e);});
+}
+
+// ── PWA: Banner "Instalar app" ──
+var _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  _deferredPrompt=e;
+  var banner=document.getElementById('pwa-banner');
+  if(banner)banner.style.display='flex';
+});
+window.addEventListener('appinstalled',function(){
+  var banner=document.getElementById('pwa-banner');
+  if(banner)banner.style.display='none';
+  _deferredPrompt=null;
+});
+function instalarApp(){
+  if(!_deferredPrompt)return;
+  _deferredPrompt.prompt();
+  _deferredPrompt.userChoice.then(function(r){
+    if(r.outcome==='accepted'){
+      document.getElementById('pwa-banner').style.display='none';
+    }
+    _deferredPrompt=null;
+  });
+}
+</script>
+
+<!-- Banner instalación PWA -->
+<div id="pwa-banner" style="display:none;position:fixed;top:16px;right:16px;z-index:2000;padding:12px 16px;background:var(--sur);border:1px solid var(--ac);border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.4);align-items:center;gap:14px;max-width:320px;backdrop-filter:blur(12px);">
+  <div>
+    <div style="font-size:11px;font-weight:600;color:var(--tx);margin-bottom:2px;">Instalar FiscalMX</div>
+    <div style="font-size:9px;color:var(--mu);">Acceso rápido desde tu pantalla de inicio · funciona sin internet</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    <button onclick="instalarApp()" style="background:var(--ac);color:#05110e;border:none;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;padding:8px 14px;border-radius:3px;cursor:pointer;white-space:nowrap;">Instalar</button>
+    <button onclick="document.getElementById('pwa-banner').style.display='none'" style="background:transparent;color:var(--mu);border:1px solid var(--bor);font-family:'DM Mono',monospace;font-size:9px;padding:8px 10px;border-radius:3px;cursor:pointer;">✕</button>
+  </div>
+</div>
+
+</body>
+(function(){
+  var salInput=document.getElementById('salM');
+  var stickyCta=document.getElementById('sticky-cta');
+  if(!salInput||!stickyCta)return;
+  salInput.addEventListener('input',function(){
+    var v=parseFloat(this.value)||0;
+    if(v>0){
+      document.getElementById('sticky-sal').textContent='$'+Math.round(v*12).toLocaleString('es-MX')+'/año';
+      stickyCta.classList.add('visible');
+    } else {
+      stickyCta.classList.remove('visible');
+    }
+  });
+})();
+</script>
+
+<!-- Sticky CTA (#5) -->
+<div id="sticky-cta">
+  <div class="sticky-inner">
+    <div class="sticky-preview">
+      <div style="font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);margin-bottom:2px;">Ingreso anual estimado</div>
+      <strong id="sticky-sal">—</strong>
+    </div>
+    <button class="sticky-btn" onclick="calcular()">→ Calcular mi situación fiscal</button>
+  </div>
+</div>
+
+<!-- ── Banner de instalación PWA ── -->
+<div id="pwa-banner" style="display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:2000;width:calc(100% - 40px);max-width:480px;background:var(--sur2);border:1px solid rgba(61,255,192,.3);border-radius:8px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.4);backdrop-filter:blur(12px);">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:44px;height:44px;border-radius:10px;background:#08091a;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:Georgia,serif;font-size:24px;color:#3dffc0;border:1px solid rgba(61,255,192,.2);">$</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:11px;font-weight:600;color:var(--tx);margin-bottom:2px;">Instalar FiscalMX</div>
+      <div style="font-size:9px;color:var(--mu);line-height:1.5;">Acceso rápido desde tu pantalla de inicio. Sin App Store, funciona offline.</div>
+    </div>
+    <button id="pwa-close" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:16px;padding:4px;flex-shrink:0;line-height:1;">✕</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px;">
+    <button id="pwa-install" style="flex:1;background:var(--ac);color:#05110e;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2px;text-transform:uppercase;border:none;padding:10px;border-radius:4px;cursor:pointer;">→ Instalar</button>
+    <button id="pwa-later" style="background:transparent;border:1px solid var(--bor2);color:var(--mu);font-family:'DM Mono',monospace;font-size:10px;padding:10px 14px;border-radius:4px;cursor:pointer;">Ahora no</button>
+  </div>
+  <div id="pwa-ios" style="display:none;margin-top:10px;padding:10px;background:rgba(61,255,192,.04);border-radius:4px;border:1px solid rgba(61,255,192,.1);">
+    <div style="font-size:9px;color:var(--mu);line-height:1.8;">En Safari: toca <strong style="color:var(--tx)">compartir</strong> ⎋ → <strong style="color:var(--tx)">"Agregar a pantalla de inicio"</strong></div>
+  </div>
+</div>
+
+<script>
+// ── PWA: icono canvas + manifest dinámico + service worker ──
+(function(){
+  function makeIcon(size){
+    var c=document.createElement('canvas');c.width=c.height=size;
+    var ctx=c.getContext('2d');
+    var r=size*0.18;
+    ctx.beginPath();ctx.moveTo(r,0);ctx.lineTo(size-r,0);ctx.quadraticCurveTo(size,0,size,r);
+    ctx.lineTo(size,size-r);ctx.quadraticCurveTo(size,size,size-r,size);
+    ctx.lineTo(r,size);ctx.quadraticCurveTo(0,size,0,size-r);
+    ctx.lineTo(0,r);ctx.quadraticCurveTo(0,0,r,0);ctx.closePath();
+    ctx.fillStyle='#08091a';ctx.fill();
+    ctx.fillStyle='#3dffc0';
+    ctx.font='bold '+(size*.52)+'px Georgia,serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('$',size/2,size/2+size*.04);
+    ctx.fillStyle='rgba(61,255,192,.25)';
+    ctx.fillRect(size*.15,size*.82,size*.7,size*.03);
+    return c.toDataURL('image/png');
+  }
+
+  var icon192=makeIcon(192);
+  var icon512=makeIcon(512);
+
+  // Apple touch icon
+  var ati=document.createElement('link');
+  ati.rel='apple-touch-icon';ati.href=icon512;
+  document.head.appendChild(ati);
+
+  // Favicon
+  var fav=document.createElement('link');
+  fav.rel='icon';fav.href=icon192;
+  document.head.appendChild(fav);
+
+  // Manifest dinámico
+  var manifest={
+    name:'FiscalMX 2026',short_name:'FiscalMX',
+    description:'Calculadora fiscal para asalariados en México',
+    start_url:location.href.split('?')[0],
+    scope:'./',display:'standalone',
+    orientation:'portrait-primary',
+    background_color:'#08091a',theme_color:'#08091a',
+    categories:['finance','productivity'],lang:'es',
+    icons:[
+      {src:icon192,sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:icon512,sizes:'512x512',type:'image/png',purpose:'any maskable'}
+    ]
+  };
+  var mBlob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  var mLink=document.createElement('link');
+  mLink.rel='manifest';mLink.href=URL.createObjectURL(mBlob);
+  document.head.appendChild(mLink);
+
+  // Service Worker inline via Blob
+  if('serviceWorker' in navigator){
+    var swCode=[
+      "const CACHE='fiscalmx-v2';",
+      "self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>{",
+      "  return c.addAll(['/']);",
+      "}).then(()=>self.skipWaiting()));});",
+      "self.addEventListener('activate',e=>{e.waitUntil(",
+      "  caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k))))",
+      "  .then(()=>self.clients.claim())",
+      ");});",
+      "self.addEventListener('fetch',e=>{",
+      "  if(e.request.method!=='GET')return;",
+      "  e.respondWith(caches.match(e.request).then(cached=>{",
+      "    var fresh=fetch(e.request).then(res=>{",
+      "      if(res&&res.status===200&&res.type!=='opaque'){",
+      "        var clone=res.clone();",
+      "        caches.open(CACHE).then(c=>c.put(e.request,clone));",
+      "      }",
+      "      return res;",
+      "    }).catch(()=>cached);",
+      "    return cached||fresh;",
+      "  }));",
+      "});"
+    ].join('\n');
+    try{
+      var swBlob=new Blob([swCode],{type:'application/javascript'});
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'})
+        .then(function(r){console.log('[FiscalMX] SW activo, scope:',r.scope);})
+        .catch(function(e){console.log('[FiscalMX] SW omitido:',e.message);});
+    }catch(e){}
+  }
+})();
+
+// ── Banner instalación ──
+(function(){
+  var banner=document.getElementById('pwa-banner');
+  var btnInstall=document.getElementById('pwa-install');
+  var btnClose=document.getElementById('pwa-close');
+  var btnLater=document.getElementById('pwa-later');
+  var iosNote=document.getElementById('pwa-ios');
+  var deferredPrompt=null;
+  var SNOOZE='fiscalmx_pwa_ok';
+
+  var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios/i.test(navigator.userAgent);
+  var isStandalone=window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
+  if(isStandalone)return;
+
+  function show(){
+    if(localStorage.getItem(SNOOZE))return;
+    banner.style.display='block';
+    banner.style.opacity='0';banner.style.transform='translateX(-50%) translateY(20px)';
+    requestAnimationFrame(function(){
+      banner.style.transition='opacity .35s,transform .35s cubic-bezier(.16,1,.3,1)';
+      banner.style.opacity='1';banner.style.transform='translateX(-50%) translateY(0)';
+    });
+  }
+
+  function hide(permanent){
+    banner.style.opacity='0';banner.style.transform='translateX(-50%) translateY(20px)';
+    setTimeout(function(){banner.style.display='none';},350);
+    if(permanent)localStorage.setItem(SNOOZE,'1');
+  }
+
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();deferredPrompt=e;
+    setTimeout(show,3500);
+  });
+
+  if(isIOS){
+    iosNote.style.display='block';
+    btnInstall.textContent='¿Cómo instalo?';
+    btnInstall.style.background='transparent';
+    btnInstall.style.border='1px solid rgba(61,255,192,.4)';
+    btnInstall.style.color='var(--ac)';
+    btnInstall.onclick=function(){iosNote.style.display=iosNote.style.display==='none'?'block':'none';};
+    setTimeout(show,4000);
+  }
+
+  if(btnInstall)btnInstall.addEventListener('click',function(){
+    if(!deferredPrompt)return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(r){
+      if(r.outcome==='accepted')hide(true);
+      deferredPrompt=null;
+    });
+  });
+
+  if(btnClose)btnClose.addEventListener('click',function(){hide(false);});
+  if(btnLater)btnLater.addEventListener('click',function(){hide(true);});
+
+  window.addEventListener('appinstalled',function(){
+    hide(true);
+    var t=document.createElement('div');
+    t.textContent='✓ FiscalMX instalada';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#3dffc0;color:#05110e;font-family:"DM Mono",monospace;font-size:10px;letter-spacing:1.5px;padding:10px 20px;border-radius:4px;z-index:3000;';
+    document.body.appendChild(t);
+    setTimeout(function(){t.remove();},3000);
+  });
+})();
+</script>
+</body>
+</html>
+
