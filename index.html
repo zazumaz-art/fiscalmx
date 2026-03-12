@@ -2149,8 +2149,8 @@ function renderCal(){
 window.addEventListener('resize',function(){if(G.neto)drawChart();});
 
 // ── PWA: Service Worker ──
-if('serviceWorker' in navigator){
-  // Inyectar SW como blob para funcionar desde archivo local o cualquier servidor
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.protocol==='http:')){
+  // SW solo disponible en http/https — se omite en file:// y entornos de preview
   var swCode=[
     "const CACHE='fiscalmx-v1';",
     "const ASSETS=['/'];",
@@ -2214,7 +2214,7 @@ function instalarApp(){
   </div>
 </div>
 
-</body>
+<script>
 (function(){
   var salInput=document.getElementById('salM');
   var stickyCta=document.getElementById('sticky-cta');
